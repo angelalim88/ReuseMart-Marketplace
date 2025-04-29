@@ -1,4 +1,4 @@
-# ReUse Mart - Second-Hand Marketplace
+# 🛒 🛍️ ReUse Mart - Second-Hand Marketplace
 
 Welcome to **ReUse Mart**, a platform dedicated to buying, selling, and managing second-hand goods with a focus on quality and sustainability. Our marketplace connects buyers, sellers, organizations, and employees in a seamless ecosystem.
 
