@@ -8,13 +8,14 @@ import {
   GetAkunByPegawaiId
 } from '../../clients/PegawaiService';
 import { Container, Row, Col, Form, Button, Card, Modal, Pagination, Nav } from 'react-bootstrap';
-import defaultAvatar from '../../assets/images/logo.png';
+import defaultAvatar from '../../assets/images/profile_picture/default.jpg';
 import { Link } from "react-router-dom";
 import TopNavigation from "../../components/navigation/TopNavigation";
 import ToastNotification from "../../components/toast/ToastNotification";
 import RoleSidebar from "../../components/navigation/Sidebar";
 import EmployeeCard from "../../components/card/CardPegawai";
 import PaginationComponent from "../../components/pagination/Pagination";
+import ResetEmployeePassModal from '../../components/modal/ResetEmployeePassModal';
 
 const ManagePegawaiPage = () => {
   const [pegawaiList, setPegawaiList] = useState([]);
@@ -125,7 +126,7 @@ const ManagePegawaiPage = () => {
         akun: pegawaiData.Akun || pegawaiData.akun || {
           id_akun: pegawaiData.id_akun,
           email: '',
-          role: ''
+          role: '',
         }
       });
       
@@ -172,7 +173,7 @@ const ManagePegawaiPage = () => {
     const file = e.target.files[0];
     if (file) {
       setProfilePicture(file);
-      
+      console.log(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
@@ -207,14 +208,12 @@ const ManagePegawaiPage = () => {
         const formData = new FormData();
         formData.append('nama_pegawai', currentPegawai.nama_pegawai);
         formData.append('tanggal_lahir', currentPegawai.tanggal_lahir);
-        formData.append('akun[email]', currentPegawai.akun.email);
-        formData.append('akun[password]', currentPegawai.akun.password || 'defaultPassword');
-        formData.append('akun[role]', currentPegawai.akun.role);
+        formData.append('email', currentPegawai.akun.email);
+        formData.append('password', currentPegawai.akun.password || 'defaultPassword');
+        formData.append('role', currentPegawai.akun.role);
         
         if (profilePicture) {
-          formData.append('akun[profile_picture]', profilePicture);
-        } else {
-          formData.append('akun[profile_picture]', defaultAvatar);
+          formData.append('profile_picture', profilePicture);
         }
         
         const response = await CreatePegawai(formData);
@@ -231,42 +230,28 @@ const ManagePegawaiPage = () => {
           has_new_profile_picture: !!profilePicture
         });
         
-        const updateData = {
-          nama_pegawai: currentPegawai.nama_pegawai,
-          tanggal_lahir: currentPegawai.tanggal_lahir,
-          akun: {
-            email: currentPegawai.akun.email,
-            role: currentPegawai.akun.role
-          }
-        };
+        const formData = new FormData();
         
+        // Add basic employee data
+        formData.append('nama_pegawai', currentPegawai.nama_pegawai);
+        formData.append('tanggal_lahir', currentPegawai.tanggal_lahir);
+        
+        // Add account info
+        formData.append('email', currentPegawai.akun.email);
+        formData.append('role', currentPegawai.akun.role);
+        
+        // Add password if reset is requested
         if (resetPassword && newPassword) {
-          updateData.akun.password = newPassword;
-          console.log('Password reset included in update');
+          formData.append('password', newPassword);
         }
         
+        // Add profile picture if selected
         if (profilePicture) {
-          console.log('Profile picture included in update');
-          const formData = new FormData();
-          
-          formData.append('nama_pegawai', updateData.nama_pegawai);
-          formData.append('tanggal_lahir', updateData.tanggal_lahir);
-          formData.append('akun[email]', updateData.akun.email);
-          formData.append('akun[role]', updateData.akun.role);
-          
-          if (resetPassword && newPassword) {
-            formData.append('akun[password]', updateData.akun.password);
-          }
-          
-          formData.append('akun[profile_picture]', profilePicture);
-          
-          const response = await UpdatePegawai(currentPegawai.id_pegawai, formData);
-          console.log('Employee updated successfully with new profile picture:', response.data);
-        } else {
-          const response = await UpdatePegawai(currentPegawai.id_pegawai, updateData);
-          console.log('Employee updated successfully:', response.data);
+          formData.append('profile_picture', profilePicture);
         }
         
+        const response = await UpdatePegawai(currentPegawai.id_pegawai, formData);
+        console.log('Employee updated successfully:', response.data);
         showNotification('Data pegawai berhasil diperbarui!', 'success');
       }
       
@@ -349,7 +334,6 @@ const ManagePegawaiPage = () => {
         message={toastMessage} 
         type={toastType} 
       />
-      <TopNavigation activeTab="pegawai" />
 
       <div className="max-width-container mx-auto pt-4 px-3">
         {error && (
@@ -376,6 +360,7 @@ const ManagePegawaiPage = () => {
           {/* panggil siderbar buat role */}
           <Col md={3}>
             <RoleSidebar 
+              namaSidebar={'Role'}
               roles={roles} 
               selectedRole={selectedRole} 
               handleRoleChange={handleRoleChange} 
@@ -418,6 +403,7 @@ const ManagePegawaiPage = () => {
                     onEdit={handleEditPegawai}
                     onDelete={handleDelete}
                     getRoleName={getRoleName}
+                    setSelectedEmployee={setCurrentPegawai}
                   />
                 ))}
 
@@ -595,6 +581,8 @@ const ManagePegawaiPage = () => {
         </Modal.Body>
       </Modal>
 
+      <ResetEmployeePassModal pegawai={currentPegawai}/>
+
       <style jsx>{`
         .max-width-container {
           max-width: 1200px;
@@ -691,6 +679,11 @@ const ManagePegawaiPage = () => {
         .delete-btn:hover {
           background-color: #e61500;
           border-color: #e61500;
+        }
+
+        .reset-btn {
+          border-radius: 4px;
+          font-weight: 500;
         }
         
         .edit-btn {

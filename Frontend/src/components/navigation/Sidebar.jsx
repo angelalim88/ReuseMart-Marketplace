@@ -1,13 +1,13 @@
 import React from 'react';
 import { Card } from 'react-bootstrap';
 
-const RoleSidebar = ({ roles, selectedRole, handleRoleChange }) => {
+const RoleSidebar = ({ namaSidebar, roles, selectedRole, handleRoleChange }) => {
   return (
     <Card className="border role-card">
       <Card.Header className="bg-white border-bottom p-3">
         <div className="d-flex align-items-center">
           <i className="bi bi-list-ul me-2" style={{ color: '#03081F' }}></i>
-          <strong style={{ color: '#03081F' }}>Role</strong>
+          <strong style={{ color: '#03081F' }}>{namaSidebar}</strong>
         </div>
       </Card.Header>
       <Card.Body className="p-0">

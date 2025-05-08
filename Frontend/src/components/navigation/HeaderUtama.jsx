@@ -1,9 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { FaSearch, FaShoppingCart, FaBell } from 'react-icons/fa';
+import { GetAkunById } from "../../clients/AkunService";
+import { decodeToken } from '../../utils/jwtUtils';
 
 const HeaderUtama = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [userData, setUserData] = useState(null); // Menyimpan data akun pengguna
+  const [isHovered, setIsHovered] = useState(false); // State untuk hover pada tombol login
+
+  // Fungsi untuk mengambil data akun pengguna
+  const fetchUserData = async () => {
+    const token = localStorage.getItem("authToken");
+    if (!token) return; // Jika tidak ada token, tidak bisa ambil data
+
+    const idAkun = decodeToken(token).id;
+    if (!idAkun) {
+      console.error("ID Akun tidak ditemukan di token");
+      return;
+    }
+
+    try {
+      const response = await GetAkunById(idAkun);
+      setUserData(response); // Menyimpan data akun pengguna ke state
+      console.log('response data', response);
+      
+    } catch (error) {
+      console.error('Failed to fetch user data:', error);
+    }
+  };
+
+  // Memanggil fetchUserData saat komponen dimuat
+  useEffect(() => {
+    fetchUserData();
+  }, []);
 
   const headerStyle = {
     padding: '12px 0',
@@ -18,20 +48,6 @@ const HeaderUtama = () => {
     display: 'flex',
     alignItems: 'center',
     marginRight: '20px',
-  };
-
-  const logoTextStyle = {
-    fontWeight: 'bold',
-    fontSize: '24px',
-    margin: 0,
-    color: '#000000',
-  };
-
-  const logoGreenStyle = {
-    color: '#028643',
-    backgroundColor: '#028643',
-    padding: '0 8px',
-    // color: '#FFFFFF',
   };
 
   const searchContainerStyle = {
@@ -91,6 +107,7 @@ const HeaderUtama = () => {
     display: 'flex',
     alignItems: 'center',
     cursor: 'pointer',
+    position: 'relative',
   };
 
   const userIconStyle = {
@@ -143,12 +160,81 @@ const HeaderUtama = () => {
               <FaBell />
             </div>
 
-            <button style={loginButtonStyle} onClick={() => (window.location.href = '/login')}>
-              <div style={userIconStyle}>
-                <span>U</span>
-              </div>
-              Masuk/Daftar
-            </button>
+            {/* Dropdown Menu untuk pengguna yang sudah login */}
+            {userData != null ? (
+              <button
+                style={loginButtonStyle}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+              >
+                <div style={userIconStyle}>
+                  <img
+                    src={userData.profilePictureUrl} // Gambar profil dari response API
+                    alt="User"
+                    style={{ width: '100%', height: '100%', borderRadius: '50%' }}
+                  />
+                </div>
+                {userData.email} {/* Nama pengguna dari response API */}
+
+                {/* Dropdown Menu */}
+                {isHovered && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: '0',
+                      backgroundColor: '#fff',
+                      boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)',
+                      borderRadius: '8px',
+                      padding: '10px',
+                      zIndex: '100',
+                    }}
+                  >
+                    <button
+                      style={{
+                        backgroundColor: '#028643',
+                        color: '#fff',
+                        padding: '5px 10px',
+                        borderRadius: '5px',
+                        cursor: 'pointer',
+                        width: '100%',
+                      }}
+                      onClick={() => (window.location.href = '/profile')}
+                    >
+                      Profil
+                    </button>
+                    <button
+                      style={{
+                        backgroundColor: '#ff4d4d',
+                        color: '#fff',
+                        padding: '5px 10px',
+                        borderRadius: '5px',
+                        cursor: 'pointer',
+                        width: '100%',
+                        marginTop: '5px',
+                      }}
+                      onClick={() => {
+                        localStorage.removeItem('authToken');
+                        window.location.href = '/login'; // Logout and redirect to login
+                      }}
+                    >
+                      Keluar
+                    </button>
+                  </div>
+                )}
+              </button>
+            ) : (
+              // Tombol Masuk/Daftar untuk pengguna yang belum login
+              <button
+                style={loginButtonStyle}
+                onClick={() => (window.location.href = '/login')}
+              >
+                <div style={userIconStyle}>
+                  <span>U</span>
+                </div>
+                Masuk/Daftar
+              </button>
+            )}
           </div>
         </div>
       </div>

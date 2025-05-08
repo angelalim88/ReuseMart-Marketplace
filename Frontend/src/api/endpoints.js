@@ -9,6 +9,7 @@ export const ENDPOINTS = {
     GET_ALL_ALAMAT_PEMBELI: "/alamat-pembeli",
     CREATE_ALAMAT_PEMBELI: "/alamat-pembeli",
     SHOW_ALAMAT_PEMBELI: (id) => `/alamat-pembeli/${id}`,
+    SEARCH_ALAMAT_PEMBELI_BY_PEMBELI: (id) => `/alamat-pembeli/byIdPembeli/${id}`,
     UPDATE_ALAMAT_PEMBELI: (id) => `/alamat-pembeli/${id}`,
     DELETE_ALAMAT_PEMBELI: (id) => `/alamat-pembeli/${id}`,
 
@@ -25,6 +26,7 @@ export const ENDPOINTS = {
     SHOW_PEMBELI: (id) => `/pembeli/${id}`,
     UPDATE_PEMBELI: (id) => `/pembeli/${id}`,
     DELETE_PEMBELI: (id) => `/pembeli/${id}`,
+    SEARCH_PEMBELI_BY_AKUN: (id) => `/pembeli/byIdAkun/${id}`,
 
     // Organisasi Amal
     GET_ALL_ORGANISASI_AMAL: "/organisasi-amal",
@@ -32,6 +34,7 @@ export const ENDPOINTS = {
     SHOW_ORGANISASI_AMAL: (id) => `/organisasi-amal/${id}`,
     UPDATE_ORGANISASI_AMAL: (id) => `/organisasi-amal/${id}`,
     DELETE_ORGANISASI_AMAL: (id) => `/organisasi-amal/${id}`,
+    GET_ORGANISASI_AMAL_BY_AKUN: (id) => `/organisasi-amal/byIdAkun/${id}`,
 
     // Pegawai
     GET_ALL_PEGAWAI: "/pegawai",
@@ -39,6 +42,7 @@ export const ENDPOINTS = {
     SHOW_PEGAWAI: (id) => `/pegawai/${id}`,
     UPDATE_PEGAWAI: (id) => `/pegawai/${id}`,
     DELETE_PEGAWAI: (id) => `/pegawai/${id}`,
+    SEARCH_PEGAWAI_BY_AKUN: (id) => `/pegawai/byIdAkun/${id}`,
 
     // Penitip
     GET_ALL_PENITIP: "/penitip",
@@ -46,6 +50,14 @@ export const ENDPOINTS = {
     SHOW_PENITIP: (id) => `/penitip/${id}`,
     UPDATE_PENITIP: (id) => `/penitip/${id}`,
     DELETE_PENITIP: (id) => `/penitip/${id}`,
+    SEARCH_PENITIP_BY_AKUN: (id) => `/penitip/byIdAkun/${id}`,
+
+    // Penitipan
+    GET_ALL_PENITIPAN: "/penitipan",
+    CREATE_PENITIPAN: "/penitipan",
+    SHOW_PENITIPAN: (id) => `/penitipan/${id}`,
+    UPDATE_PENITIPAN: (id) => `/penitipan/${id}`,
+    DELETE_PENITIPAN: (id) => `/penitipan/${id}`,
 
     // Barang
     GET_ALL_BARANG: "/barang",
@@ -76,18 +88,21 @@ export const ENDPOINTS = {
     DELETE_TRANSAKSI: (id) => `/transaksi/${id}`,
 
     // Review Produk
-    GET_ALL_REVIEW_PRODUK: "/review-produk",
-    CREATE_REVIEW_PRODUK: "/review-produk",
-    SHOW_REVIEW_PRODUK: (id) => `/review-produk/${id}`,
-    UPDATE_REVIEW_PRODUK: (id) => `/review-produk/${id}`,
-    DELETE_REVIEW_PRODUK: (id) => `/review-produk/${id}`,
+    GET_ALL_REVIEW_PRODUK: `/review-produk`,
+    SHOW_REVIEW_PRODUK: (id) => `$/review-produk/${id}`,
+    CREATE_REVIEW_PRODUK: `/review-produk`,
+    UPDATE_REVIEW_PRODUK: `/review-produk`,
+    DELETE_REVIEW_PRODUK: `/review-produk`,
+    GET_REVIEW_BY_ID_TRANSAKSI: `/review-produk/byIdTransaksi`,
+    GET_REVIEW_BY_ID_BARANG: `/review-produk/byIdBarang`,
 
     // Diskusi Produk
-    GET_ALL_DISKUSI_PRODUK: "/diskusi-produk",
-    CREATE_DISKUSI_PRODUK: "/diskusi-produk",
+    GET_ALL_DISKUSI_PRODUK: `/diskusi-produk`,
     SHOW_DISKUSI_PRODUK: (id) => `/diskusi-produk/${id}`,
-    UPDATE_DISKUSI_PRODUK: (id) => `/diskusi-produk/${id}`,
-    DELETE_DISKUSI_PRODUK: (id) => `/diskusi-produk/${id}`,
+    CREATE_DISKUSI_PRODUK: `/diskusi-produk`,
+    UPDATE_DISKUSI_PRODUK: `/diskusi-produk`,
+    DELETE_DISKUSI_PRODUK: `/diskusi-produk`,
+    GET_DISKUSI_BY_ID_BARANG: `/diskusi-produk/byIdBarang`,
 
     // Keranjang
     GET_ALL_KERANJANG: "/keranjang",
@@ -102,6 +117,7 @@ export const ENDPOINTS = {
     SHOW_REQUEST_DONASI: (id) => `/request-donasi/${id}`,
     UPDATE_REQUEST_DONASI: (id) => `/request-donasi/${id}`,
     DELETE_REQUEST_DONASI: (id) => `/request-donasi/${id}`,
+    GET_REQUEST_DONASI_BY_ORGANISASI: (id) => `/request-donasi/byIdOrganisasi/${id}`,
 
     // Merchandise
     GET_ALL_MERCHANDISE: "/merchandise",
@@ -109,6 +125,14 @@ export const ENDPOINTS = {
     SHOW_MERCHANDISE: (id) => `/merchandise/${id}`,
     UPDATE_MERCHANDISE: (id) => `/merchandise/${id}`,
     DELETE_MERCHANDISE: (id) => `/merchandise/${id}`,
+
+    // Merchandise
+    GET_ALL_DONASI_BARANG: "/donasi-barang",
+    CREATE_DONASI_BARANG: "/donasi-barang",
+    SHOW_DONASI_BARANG: (id) => `/donasi-barang/${id}`,
+    SHOW_DONASI_BARANG_BY_REQUEST_PRODUK: (id) => `/donasi-barang/byIdRequest/${id}`,
+    UPDATE_DONASI_BARANG: (id) => `/donasi-barang/${id}`,
+    DELETE_DONASI_BARANG: (id) => `/donasi-barang/${id}`,
 
     // Claim Merchandise
     GET_ALL_CLAIM_MERCHANDISE: "/claim-merchandise",

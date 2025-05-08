@@ -38,7 +38,6 @@ const LoginRegister = ({ onLoginSuccess, onRegisterSuccess }) => {
 
     try {
       const response = await authService.register(signUpData);
-      console.log("Registrasi berhasil:", response);
       setIsRightPanelActive(false);
 
       if(!response) onRegisterSuccess({ email, password });
@@ -53,6 +52,7 @@ const LoginRegister = ({ onLoginSuccess, onRegisterSuccess }) => {
 
   return (
     <div className="login-register-component">
+      
       <div className="container py-5">
         <div className={`auth-container ${isRightPanelActive ? "right-panel-active" : ""}`}>
           {/* Sign Up Form */}
@@ -170,7 +170,7 @@ const LoginRegister = ({ onLoginSuccess, onRegisterSuccess }) => {
                 />
               </div>
               <div className="mb-4">
-                <a href="#" className="forgot-password">Forgot your password?</a>
+                <button className="btn forgot-password" data-bs-toggle="modal" data-bs-target="#forgot-password-modal" type="button">Forgot your password?</button>
               </div>
               <button className="btn custom-btn" type="submit">Masuk</button>
             </form>

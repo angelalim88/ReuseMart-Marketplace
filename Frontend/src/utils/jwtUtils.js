@@ -9,7 +9,8 @@ export const decodeToken = (token) => {
           .join('')
       );
       const payload = JSON.parse(jsonPayload);
-      return payload.role;
+      console.log("Decoded Payload:", payload);
+      return payload;
     } catch (error) {
       console.error("Error decoding token:", error);
       return null;

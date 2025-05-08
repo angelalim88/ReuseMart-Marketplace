@@ -4,8 +4,10 @@ import CardProduk from '../components/card/CardProduk';
 import { GetAllBarang } from "../clients/BarangService";
 import { FaFire, FaRegThumbsUp, FaTag, FaArrowRight } from 'react-icons/fa';
 import { Carousel } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
 
 const HomePage = () => {
+  const navigate = useNavigate();
   const [barangList, setBarangList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -15,7 +17,8 @@ const HomePage = () => {
       try {
         const response = await GetAllBarang();
         console.log(response.data);
-        setBarangList(response.data);
+        const filteredBarang = response.data.filter(item => item.status_qc !== "Tidak lulus");
+        setBarangList(filteredBarang);
         setLoading(false);
       } catch (err) {
         setError("Failed to fetch products");
@@ -325,11 +328,15 @@ const HomePage = () => {
           <div className="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-6">
             {getRandomProducts(6).map((product, index) => (
               <div className="col" key={index} style={styles.productColumn}>
-                <CardProduk 
-                  image={product.gambar || '../src/assets/images/default-product.jpg'}
+               <CardProduk 
+                  image={
+                    product.gambar 
+                      ? product.gambar.split(',')[0].trim() 
+                      : '../src/assets/images/default-product.jpg'
+                  }
                   title={product.nama}
                   price={product.harga}
-                  onClick={() => console.log(`Product clicked: ${product.id_barang}`)}
+                  onClick={() => navigate(`/barang/${product.id_barang}`)}
                 />
               </div>
             ))}
@@ -354,10 +361,14 @@ const HomePage = () => {
             {barangList.slice(0, 12).map((product, index) => (
               <div className="col" key={index} style={styles.productColumn}>
                 <CardProduk 
-                  image={product.gambar || '../src/assets/images/default-product.jpg'}
+                  image={
+                    product.gambar 
+                      ? product.gambar.split(',')[0].trim() 
+                      : '../src/assets/images/default-product.jpg'
+                  }
                   title={product.nama}
                   price={product.harga}
-                  onClick={() => console.log(`Product clicked: ${product.id_barang}`)}
+                  onClick={() => navigate(`/barang/${product.id_barang}`)}
                 />
               </div>
             ))}

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { authService } from "../api/authService";
 import { decodeToken } from "../utils/jwtUtils";
 import LoginRegister from '../components/form/LoginRegister';
+import ForgotPasswordModal from '../components/modal/ForgotPasswordModal';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -14,16 +15,21 @@ const LoginPage = () => {
       const token = await authService.login({ email, password });
 
       const storedToken = localStorage.getItem("authToken");
+      console.log("Token di localStorage:", storedToken);
+
       if (!storedToken) {
+        // console.log("Token tidak ditemukan setelah login.");
         throw new Error("Token tidak ditemukan setelah login.");
       }
 
-      const role = decodeToken(storedToken);
+      const role = decodeToken(storedToken).role;
+      
       if (!role) {
+        // console.log("Role tidak ditemukan di token.");
         throw new Error("Role tidak ditemukan di token.");
       }
 
-      switch (role.toLowerCase()) {
+      switch (role) {
         case "Owner":
           navigate("/owner");
           break;
@@ -71,7 +77,7 @@ const LoginPage = () => {
         throw new Error("Role tidak ditemukan di token.");
       }
 
-      switch (role.toLowerCase()) {
+      switch (role) {
         case "Pembeli":
           navigate("/pembeli");
           break;
@@ -81,6 +87,7 @@ const LoginPage = () => {
         default:
           throw new Error("Role tidak valid.");
       }
+      
     } catch (err) {
       if (err.response && err.response.data && err.response.data.message) {
         setError(err.response.data.message);
@@ -92,6 +99,8 @@ const LoginPage = () => {
 
   return (
     <div className="login-page">
+      <ForgotPasswordModal />
+      
       <div className="container py-5">
         <LoginRegister onLoginSuccess={handleLoginSuccess} onRegisterSuccess={handleRegisterSuccess} />
       </div>
