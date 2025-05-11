@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Card, Button } from "react-bootstrap";
 import { apiPembeli } from "../../clients/PembeliService";
 import { decodeToken } from '../../utils/jwtUtils';
+import HistoryTransaksi from './HistoryTransaksi';
 
 const PembeliProfile = () => {
   const [profile, setProfile] = useState(null);
@@ -38,7 +39,7 @@ const PembeliProfile = () => {
 
   return (
     <div className="container mt-4">
-      <h4 className="mb-3">Halaman Profil</h4>
+      <h2 className="mb-3">Profil</h2>
       <Card className="d-flex flex-row align-items-center p-3 shadow-sm">
         <img
           src={
@@ -63,6 +64,11 @@ const PembeliProfile = () => {
           Edit Profil
         </Button>
       </Card>
+
+      <div className="mt-4">
+        <h2>History Transaksi</h2>
+        <HistoryTransaksi />
+      </div>
     </div>
   );
 };

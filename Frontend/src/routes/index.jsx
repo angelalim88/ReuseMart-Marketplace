@@ -36,7 +36,7 @@ import PenitipanHabis from "../pages/owner/PenitipanHabis";
 import LaporanDonasi from "../pages/owner/LaporanDonasi";
 import RekapRequest from "../pages/owner/RekapRequest";
 
-import DaftarBarang from "../pages/pegawai-gudang/DaftarBarang";
+import ManageBarang from "../pages/pegawai-gudang/ManageBarang";
 import DaftarTransaksi from "../pages/pegawai-gudang/DaftarTransaksi";
 import Pengambilan from "../pages/pegawai-gudang/Pengambilan";
 import Pengiriman from "../pages/pegawai-gudang/Pengiriman";
@@ -118,11 +118,11 @@ const mainRoutes = [
     path: "/pegawai-gudang",
     element: (
       <ProtectedRoute allowedRoles={["Pegawai Gudang"]}>
-        <DaftarBarang />
+        <ManageBarang />
       </ProtectedRoute>
     ),
   },
-  { path: "/pegawai-gudang/barang", element: <DaftarBarang /> },
+  { path: "/pegawai-gudang/barang", element: <ManageBarang /> },
   { path: "/pegawai-gudang/transaksi", element: <DaftarTransaksi /> },
   { path: "/pegawai-gudang/pengambilan", element: <Pengambilan /> },
   { path: "/pegawai-gudang/pengiriman", element: <Pengiriman /> },

@@ -47,3 +47,6 @@ ReUse Mart supports six distinct roles, each with specific functionalities:
 
 ## Home Page
 ![HomePage](https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/homepage.png)
+
+## Transaction History
+![HomePage](https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/transaction.png)

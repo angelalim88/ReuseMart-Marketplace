@@ -72,7 +72,8 @@ export const ENDPOINTS = {
     SHOW_PEMBELIAN: (id) => `/pembelian/${id}`,
     UPDATE_PEMBELIAN: (id) => `/pembelian/${id}`,
     DELETE_PEMBELIAN: (id) => `/pembelian/${id}`,
-
+    GET_PEMBELIAN_BY_PEMBELI: (id_pembeli) => `/pembelian/pembeli/${id_pembeli}`,
+    
     // Pengiriman
     GET_ALL_PENGIRIMAN: "/pengiriman",
     CREATE_PENGIRIMAN: "/pengiriman",
@@ -139,5 +140,15 @@ export const ENDPOINTS = {
     CREATE_CLAIM_MERCHANDISE: "/claim-merchandise",
     SHOW_CLAIM_MERCHANDISE: (id) => `/claim-merchandise/${id}`,
     UPDATE_CLAIM_MERCHANDISE: (id) => `/claim-merchandise/${id}`,
-    DELETE_CLAIM_MERCHANDISE: (id) => `/claim-merchandise/${id}`
+    DELETE_CLAIM_MERCHANDISE: (id) => `/claim-merchandise/${id}`,
+
+    // SubPembelian
+    GET_ALL_SUB_PEMBELIAN: "/sub-pembelian",
+    CREATE_SUB_PEMBELIAN: "/sub-pembelian",
+    SHOW_SUB_PEMBELIAN: (id) => `/sub-pembelian/${id}`,
+    UPDATE_SUB_PEMBELIAN: (id) => `/sub-pembelian/${id}`,
+    DELETE_SUB_PEMBELIAN: (id) => `/sub-pembelian/${id}`,
+    GET_SUB_PEMBELIAN_BY_PEMBELIAN: (id_pembelian) => `/sub-pembelian/by-pembelian/${id_pembelian}`,
+    GET_SUB_PEMBELIAN_BY_PEMBELI: (id_pembeli) => `/sub-pembelian/by-pembeli/${id_pembeli}`, 
+
 };
