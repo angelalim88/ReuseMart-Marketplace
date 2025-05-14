@@ -3,7 +3,15 @@ import { Toast, ToastContainer } from 'react-bootstrap';
 
 const ToastNotification = ({ show, setShow, message, type = 'success' }) => {
   return (
-    <ToastContainer position="top-end" className="p-3" style={{ zIndex: 1070 }}>
+    <ToastContainer 
+      position="top-end" 
+      className="p-3 position-fixed" 
+      style={{ 
+        zIndex: 1070,
+        top: 20,
+        right: 20
+      }}
+    >
       <Toast 
         show={show} 
         onClose={() => setShow(false)} 

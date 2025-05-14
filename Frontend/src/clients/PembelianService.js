@@ -10,8 +10,8 @@ export const apiPembelian = {
         const response = await apiClient.get(ENDPOINTS.SHOW_PEMBELIAN(id));
         return response.data;
     },
-    getPembelianByPembeliId: async (id_pembeli) => {
-        const response = await apiClient.get(ENDPOINTS.GET_PEMBELIAN_BY_PEMBELI(id_pembeli));
+    getPembelianByPembeliId: async (id) => {
+        const response = await apiClient.get(ENDPOINTS.GET_PEMBELIAN_BY_PEMBELI(id));
         return response.data;
     },
     createPembelian: async (data) => {

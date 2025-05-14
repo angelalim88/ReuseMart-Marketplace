@@ -72,7 +72,7 @@ export const ENDPOINTS = {
     SHOW_PEMBELIAN: (id) => `/pembelian/${id}`,
     UPDATE_PEMBELIAN: (id) => `/pembelian/${id}`,
     DELETE_PEMBELIAN: (id) => `/pembelian/${id}`,
-    GET_PEMBELIAN_BY_PEMBELI: (id_pembeli) => `/pembelian/pembeli/${id_pembeli}`,
+    GET_PEMBELIAN_BY_PEMBELI: (id) => `/pembelian/byIdPembeli/${id}`,
     
     // Pengiriman
     GET_ALL_PENGIRIMAN: "/pengiriman",
@@ -149,6 +149,6 @@ export const ENDPOINTS = {
     UPDATE_SUB_PEMBELIAN: (id) => `/sub-pembelian/${id}`,
     DELETE_SUB_PEMBELIAN: (id) => `/sub-pembelian/${id}`,
     GET_SUB_PEMBELIAN_BY_PEMBELIAN: (id_pembelian) => `/sub-pembelian/by-pembelian/${id_pembelian}`,
-    GET_SUB_PEMBELIAN_BY_PEMBELI: (id_pembeli) => `/sub-pembelian/by-pembeli/${id_pembeli}`, 
-
+    GET_SUB_PEMBELIAN_BY_PEMBELI: (id_pembeli) => `/sub-pembelian/byIdPembeli/${id_pembeli}`, 
+    GET_SUB_PEMBELIAN_BY_PENITIP: (id_penitip) => `/sub-pembelian/byIdPenitip/${id_penitip}`
 };

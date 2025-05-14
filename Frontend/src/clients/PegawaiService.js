@@ -7,17 +7,13 @@ export const GetAllPegawai = () =>
 export const GetPegawaiById = (id) =>
     apiClient.get(ENDPOINTS.SHOW_PEGAWAI(id));
 
-// Improved CreatePegawai function to properly handle FormData
 export const CreatePegawai = (data) => {
-    // Check if data is already FormData
     if (!(data instanceof FormData)) {
-        // Convert to FormData if it's not already
         const formData = new FormData();
         Object.keys(data).forEach(key => {
             if (key === 'profile_picture' && data[key] instanceof File) {
                 formData.append(key, data[key]);
             } else if (typeof data[key] === 'object' && data[key] !== null && !(data[key] instanceof File)) {
-                // Handle nested objects (like akun)
                 Object.keys(data[key]).forEach(nestedKey => {
                     formData.append(nestedKey, data[key][nestedKey]);
                 });
@@ -35,24 +31,18 @@ export const CreatePegawai = (data) => {
     });
 };
 
-// Improved UpdatePegawai function to properly handle FormData
 export const UpdatePegawai = (id, pegawaiData) => {
-    // Check if pegawaiData is already FormData
     if (!(pegawaiData instanceof FormData)) {
         const formData = new FormData();
-        
-        // Add basic pegawai fields
         if (pegawaiData.nama_pegawai) formData.append('nama_pegawai', pegawaiData.nama_pegawai);
         if (pegawaiData.tanggal_lahir) formData.append('tanggal_lahir', pegawaiData.tanggal_lahir);
-        
-        // Add akun fields directly to the root level
+
         if (pegawaiData.akun) {
             if (pegawaiData.akun.email) formData.append('email', pegawaiData.akun.email);
             if (pegawaiData.akun.role) formData.append('role', pegawaiData.akun.role);
             if (pegawaiData.akun.password) formData.append('password', pegawaiData.akun.password);
         }
         
-        // Add profile picture if it exists
         if (pegawaiData.profile_picture instanceof File) {
             formData.append('profile_picture', pegawaiData.profile_picture);
         }

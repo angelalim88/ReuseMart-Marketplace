@@ -18,6 +18,10 @@ export const apiSubPembelian = {
     const response = await apiClient.get(ENDPOINTS.GET_SUB_PEMBELIAN_BY_PEMBELI(id_pembeli));
     return response.data;
   },
+  getSubPembelianByPenitipId: async (id_penitip) => {
+    const response = await apiClient.get(ENDPOINTS.GET_SUB_PEMBELIAN_BY_PENITIP(id_penitip));
+    return response.data;
+  },
   createSubPembelian: async (data) => {
     const response = await apiClient.post(ENDPOINTS.CREATE_SUB_PEMBELIAN, data);
     return response.data;
