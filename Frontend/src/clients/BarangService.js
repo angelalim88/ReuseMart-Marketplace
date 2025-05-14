@@ -18,3 +18,4 @@ export const UpdateBarang = (id, data) =>
 
 export const DeleteBarang = (id) =>
     apiClient.delete(ENDPOINTS.DELETE_BARANG(id));
+

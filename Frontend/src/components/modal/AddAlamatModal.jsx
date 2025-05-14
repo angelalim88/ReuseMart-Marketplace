@@ -47,12 +47,12 @@ const AddAlamatModal = ({ id_pembeli, onAdd }) => {
               <div className="modal-body">
                 <div className="mb-3">
                   <label htmlFor="nama-alamat" className="form-label fw-semibold">Nama Alamat</label>
-                  <input type="text" className="form-control" id="nama-alamat" name="nama_alamat" value={namaAlamat} onChange={(e) => setNamaAlamat(e.target.value)} />
+                  <input required type="text" className="form-control" id="nama-alamat" name="nama_alamat" value={namaAlamat} onChange={(e) => setNamaAlamat(e.target.value)} />
                 </div>
 
                 <div className="mb-3">
                   <label htmlFor="alamat-lengkap" className="form-label fw-semibold">Alamat Lengkap</label>
-                  <input type="text" className="form-control" id="alamat-lengkap" name="alamat_lengkap" value={alamatLengkap} onChange={(e) => setAlamatLengkap(e.target.value)} />
+                  <input required type="text" className="form-control" id="alamat-lengkap" name="alamat_lengkap" value={alamatLengkap} onChange={(e) => setAlamatLengkap(e.target.value)} />
                 </div>
 
                 <div className="mb-3">

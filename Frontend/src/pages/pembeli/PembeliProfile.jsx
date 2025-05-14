@@ -4,6 +4,8 @@ import { apiPembeli } from "../../clients/PembeliService";
 import { apiSubPembelian } from "../../clients/SubPembelianService";
 import { decodeToken } from '../../utils/jwtUtils';
 import { FaEdit, FaSearch, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { apiAlamatPembeli } from "../../clients/AlamatPembeliServices";
+import { GetPenitipById } from "../../clients/PenitipService";
 
 // Shared color palette
 export const colors = {
@@ -176,10 +178,10 @@ const HistoryTransaksi = ({ pembeliId }) => {
   // Fetch pembeli name
   const getPembeliName = async (idPembeli) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/pembeli/${idPembeli}`);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      return data.pembeli?.nama || 'Unknown Pembeli';
+      const response = await apiPembeli.getPembeliById(idPembeli);
+      console.log('pembeli name', response);
+      // The response is already the parsed data, not a fetch Response object
+      return response.pembeli?.nama || 'Unknown Pembeli';
     } catch (error) {
       console.error(`Error fetching pembeli name for ${idPembeli}:`, error);
       return 'Unknown Pembeli';
@@ -189,10 +191,9 @@ const HistoryTransaksi = ({ pembeliId }) => {
   // Fetch alamat details
   const getAlamatDetails = async (idAlamat) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/alamat-pembeli/${idAlamat}`);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      return data.alamat?.alamat_lengkap || 'Unknown Alamat';
+      const response = await apiAlamatPembeli.getAlamatPembeliById(idAlamat);
+      // The response is already the parsed data
+      return response.alamat?.alamat_lengkap || 'Unknown Alamat';
     } catch (error) {
       console.error(`Error fetching alamat for ${idAlamat}:`, error);
       return 'Unknown Alamat';
@@ -202,10 +203,9 @@ const HistoryTransaksi = ({ pembeliId }) => {
   // Fetch penitip name
   const getPenitipName = async (idPenitip) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/penitip/${idPenitip}`);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      return data.nama_penitip || 'Unknown Penitip';
+      const response = await GetPenitipById(idPenitip);
+      // The response is already the parsed data
+      return response.nama_penitip || 'Unknown Penitip';
     } catch (error) {
       console.error(`Error fetching penitip name for ${idPenitip}:`, error);
       return 'Unknown Penitip';
@@ -230,8 +230,9 @@ const HistoryTransaksi = ({ pembeliId }) => {
 
         const transformedData = await Promise.all(
           subPembelianData.map(async (transaction) => {
-            const pembeliName = await getPembeliName(transaction.id_pembeli);
-            const alamatDetails = await getAlamatDetails(transaction.id_alamat);
+            console.log('transaction ini', transaction);
+            const pembeliName = await getPembeliName(transaction.pembelian.id_pembeli);
+            const alamatDetails = await getAlamatDetails(transaction.pembelian.id_alamat);
             const barangWithPenitip = await Promise.all(
               (transaction.barang || []).map(async (item) => ({
                 ...item,
@@ -460,28 +461,28 @@ const HistoryTransaksi = ({ pembeliId }) => {
                 <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
                   <div style={{ flex: '1 1 300px' }}>
                     <h5 style={{ color: colors.dark, fontWeight: '600', marginBottom: '15px' }}>Informasi Pemesanan</h5>
-                    <p><strong>ID Pembelian:</strong> {selectedTransaction.id_pembelian || 'N/A'}</p>
+                    <p><strong>ID Pembelian:</strong> {selectedTransaction.pembelian.id_pembelian || 'N/A'}</p>
                     <p><strong>Total {selectedTransaction.barang?.length || 0} Produk:</strong> 
                       <span style={{ color: colors.primary, fontWeight: '500', marginLeft: '5px' }}>
-                        Rp {selectedTransaction.total_bayar ? parseFloat(selectedTransaction.total_bayar).toLocaleString('id-ID') : '0'}
+                        Rp {selectedTransaction.pembelian.total_bayar ? parseFloat(selectedTransaction.pembelian.total_bayar).toLocaleString('id-ID') : '0'}
                       </span>
                     </p>
                     <p>
                       <strong>Status Pembelian:</strong>{' '}
                       <span
                         style={{
-                          color: getStatusColor(selectedTransaction.status_pembelian),
+                          color: getStatusColor(selectedTransaction.pembelian.status_pembelian),
                           fontWeight: '500',
                         }}
                       >
-                        {selectedTransaction.status_pembelian || 'N/A'}
+                        {selectedTransaction.pembelian.status_pembelian || 'N/A'}
                       </span>
                     </p>
                     <p><strong>Pembeli:</strong> {selectedTransaction.nama_pembeli || 'N/A'}</p>
                     <p><strong>Alamat:</strong> {selectedTransaction.alamat_pembeli || 'N/A'}</p>
-                    <p><strong>Tanggal Pembelian:</strong> {selectedTransaction.tanggal_pembelian ? formatDate(selectedTransaction.tanggal_pembelian) : 'N/A'}</p>
-                    <p><strong>Tanggal Pelunasan:</strong> {selectedTransaction.tanggal_pelunasan ? formatDate(selectedTransaction.tanggal_pelunasan) : 'N/A'}</p>
-                    <p><strong>Point Diperoleh:</strong> {selectedTransaction.poin_diperoleh || '0'} poin</p>
+                    <p><strong>Tanggal Pembelian:</strong> {selectedTransaction.pembelian.tanggal_pembelian ? formatDate(selectedTransaction.pembelian.tanggal_pembelian) : 'N/A'}</p>
+                    <p><strong>Tanggal Pelunasan:</strong> {selectedTransaction.pembelian.tanggal_pelunasan ? formatDate(selectedTransaction.pembelian.tanggal_pelunasan) : 'N/A'}</p>
+                    <p><strong>Point Diperoleh:</strong> {selectedTransaction.pembelian.poin_diperoleh || '0'} poin</p>
                   </div>
                   
                   <div style={{ flex: '1 1 400px' }}>
@@ -664,6 +665,11 @@ const PembeliProfile = () => {
             <button style={sharedStyles.buttonSecondary}>
               <FaEdit /> Edit Profil
             </button>
+            <a href="/pembeli/alamat">
+              <button className="btn btn-success rounded-pill p-2 ms-2">
+                <i class="bi bi-house-door-fill"></i> Kelola Alamat
+              </button>
+            </a>
           </div>
         </div>
       )}

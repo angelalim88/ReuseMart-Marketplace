@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { ChangePassword } from "../clients/AkunService";
 import { decodeToken } from "../utils/jwtUtils";
@@ -19,18 +19,18 @@ const ForgotPassword = () => {
         e.preventDefault();
         if(password == confirmPassword) {
             const decoded = decodeToken(token);
-            const data = {
-                newPassword: password
-            }
+            const data = { newPassword: password }
             let response;
             try {
                 response = await ChangePassword(decoded.id, data);
                 if(response) {
+                    toast.success("Berhasil mengubah password!");
                     navigate("/login");
                 }
             } catch (error) {
                 const errorMessage = error?.response?.data?.message || "Terjadi kesalahan saat mengirim data.";
                 toast.error(errorMessage);
+                console.error(errorMessage);
             }
         } else {
             toast.error("Password & Konfirmasi tidak sama!");
@@ -42,6 +42,18 @@ const ForgotPassword = () => {
         const urlToken = queryParams.get("token");
         if (urlToken) {
             setToken(urlToken);
+            const decoded = decodeToken(urlToken);
+
+            if(!decoded?.id) {
+                navigate('/login');
+                toast.error('Token tidak valid!');
+                console.error('Token tidak valid!');
+                
+            }
+        } else {
+            navigate('/login');
+            toast.error("Token tidak ditemukan!");
+            console.error("Token tidak ditemukan!");
         }
     }, []);
 
@@ -79,6 +91,7 @@ const ForgotPassword = () => {
                                 placeholder="Enter new password"
                                 value={password}
                                 onChange={(e) => {setPassword(e.target.value)}}
+                                required
                                 />
                             <span className="toggle-icon" onClick={togglePassword}>
                                 <i className={`bi ${showPassword ? "bi-eye-slash" : "bi-eye"}`}></i>
@@ -95,6 +108,7 @@ const ForgotPassword = () => {
                                 placeholder="Confirm new password"
                                 value={confirmPassword}
                                 onChange={(e) => {setConfirmPassword(e.target.value)}}
+                                required
                                 />
                             <span className="toggle-icon" onClick={toggleConfirm}>
                                 <i className={`bi ${showConfirm ? "bi-eye-slash" : "bi-eye"}`}></i>

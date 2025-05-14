@@ -1,21 +1,28 @@
 import { useEffect, useState } from "react";
 import { ChangePassword } from "../../clients/AkunService";
+import { toast } from 'sonner';
 
 const ResetEmployeePassModal = ({ pegawai }) => {
 
     const [dataPegawai, setDataPegawai] = useState(null);
 
     const resetPassword = async () => {
-      const newPass = new Date(dataPegawai.tanggal_lahir).toLocaleDateString('id-ID');
-      const newData = {
-        newPassword: newPass,
-      }
-      
-      const response = await ChangePassword(dataPegawai.id_akun, newData);
-      
-      if(response) {
-        const modal = bootstrap.Modal.getInstance(document.getElementById('reset-emmployee-pass-modal'));
-        modal.hide();
+      try {
+        const newPass = new Date(dataPegawai.tanggal_lahir).toLocaleDateString('id-ID');
+        const newData = {
+          newPassword: newPass,
+        }
+        
+        const response = await ChangePassword(dataPegawai.id_akun, newData);
+        
+        if(response) {
+          const modal = bootstrap.Modal.getInstance(document.getElementById('reset-emmployee-pass-modal'));
+          modal.hide();
+          toast.success("Berhasil mereset password!"); 
+        }
+      } catch (error) {
+        console.error('Gagal mengubah password ', error);
+        toast.error("Gagal mengubah password!");
       }
     };
 

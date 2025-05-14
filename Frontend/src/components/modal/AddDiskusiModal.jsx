@@ -28,7 +28,7 @@ const AddDiskusiModal = ({onSubmit}) => {
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="pertanyaan-diskusi-produk" class="form-label">Pertanyaan</label>
-                        <textarea class="form-control" id="pertanyaan-diskusi-produk" name="pertanyaan-diskusi-produk" rows="3" value={pertanyaan} onChange={(e) => setPertanyaan(e.target.value)}></textarea>
+                        <textarea required class="form-control" id="pertanyaan-diskusi-produk" name="pertanyaan-diskusi-produk" rows="3" value={pertanyaan} onChange={(e) => setPertanyaan(e.target.value)}></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">

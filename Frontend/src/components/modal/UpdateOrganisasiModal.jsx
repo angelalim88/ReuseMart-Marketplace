@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const UpdateOrganisasiModal = ({ organisasi, onEdit }) => {
 
     const [namaOrganisasi, setNamaOrganisasi] = useState("");
     const [alamat, setAlamat]  = useState("");
     const [previewImage, setPreviewImage] = useState("");
+    const fileInputRef = useRef(null);
 
     const handleEdit = async (e) => {
       e.preventDefault();
@@ -13,7 +14,12 @@ const UpdateOrganisasiModal = ({ organisasi, onEdit }) => {
       formData.append("alamat", alamat);
     
       const fileInput = document.getElementById("profile-picture");
-      if (fileInput.files[0]) {
+      const file = fileInput.files[0];
+      if (file) {
+        if (!file.type.startsWith("image/")) {
+          alert("File yang diunggah harus berupa gambar!");
+          return;
+        }
         formData.append("profile_picture", fileInput.files[0]);
       }
     
@@ -28,6 +34,7 @@ const UpdateOrganisasiModal = ({ organisasi, onEdit }) => {
 
     const handleImageChange = (e) => {
       const file = e.target.files[0];
+
       if (file) {
         const imageUrl = URL.createObjectURL(file);
         setPreviewImage(imageUrl);
@@ -35,9 +42,12 @@ const UpdateOrganisasiModal = ({ organisasi, onEdit }) => {
     };
 
     const resetForm = () => {
-      setNamaOrganisasi("");
-      setAlamat("");
+      setNamaOrganisasi(organisasi.nama_organisasi ?? "");
+      setAlamat(organisasi.alamat ?? "");
       setPreviewImage("");
+      if (fileInputRef.current) {
+        fileInputRef.current.value = null;
+      }
     }
 
     useEffect(() => {
@@ -57,9 +67,9 @@ const UpdateOrganisasiModal = ({ organisasi, onEdit }) => {
               </div>
               <div className="modal-body">
                 <div className="mb-3">
-                  <label htmlFor="profile-picture" className="form-label fw-semibold">Profile Picture</label>
+                  <label htmlFor="profile-picture" className="form-label fw-semibold w-100 text-center">Profile Picture</label>
                   <div
-                    className="circle mb-2"
+                    className="circle mb-2 mx-auto mt-1 mb-3"
                     style={{
                       backgroundImage: `url(${previewImage || (organisasi?.Akun?.profile_picture ? `http://localhost:3000/uploads/profile_picture/${organisasi.Akun.profile_picture}` : 'http://localhost:3000/uploads/profile_picture/default.jpg')})`,
                       backgroundSize: 'cover',
@@ -69,17 +79,17 @@ const UpdateOrganisasiModal = ({ organisasi, onEdit }) => {
                       borderRadius: '50%',
                     }}
                   ></div>
-                  <input type="file" className="form-control" id="profile-picture" name="profile_picture" onChange={handleImageChange} />
+                  <input type="file" className="form-control" id="profile-picture" name="profile_picture" onChange={handleImageChange} ref={fileInputRef} />
                 </div>
 
                 <div className="mb-3">
                   <label htmlFor="nama-organisasi" className="form-label fw-semibold">Nama Organisasi</label>
-                  <input type="text" className="form-control" id="nama-organisasi" name="nama_organisasi" value={namaOrganisasi} onChange={(e) => setNamaOrganisasi(e.target.value)} />
+                  <input required type="text" className="form-control" id="nama-organisasi" name="nama_organisasi" value={namaOrganisasi} onChange={(e) => setNamaOrganisasi(e.target.value)} />
                 </div>
 
                 <div className="mb-3">
                   <label htmlFor="alamat" className="form-label fw-semibold">Alamat</label>
-                  <input type="text" className="form-control" id="alamat" name="alamat" value={alamat} onChange={(e) => setAlamat(e.target.value)} />
+                  <input required type="text" className="form-control" id="alamat" name="alamat" value={alamat} onChange={(e) => setAlamat(e.target.value)} />
                 </div>
 
               </div>

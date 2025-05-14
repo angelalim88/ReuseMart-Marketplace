@@ -11,6 +11,7 @@ import AddDiskusiModal from "../components/modal/AddDiskusiModal";
 import AnswerDiskusiModal from '../components/modal/AnswerDiskusiModal';
 import { apiPembeli } from "../clients/PembeliService";
 import { GetAllPegawai, GetPegawaiByAkunId, GetPegawaiById } from "../clients/PegawaiService";
+import { toast } from 'sonner';
 
 const DetailBarang = () => {
   const { id } = useParams();
@@ -36,6 +37,9 @@ const DetailBarang = () => {
   const [customerService, setCustomerService] = useState(null);
   const [toggleDiskusi, setToggleDiskusi] = useState(false);
   const [selectedDiscussion, setSelectedDiscussion] = useState(null);
+  const [currentSection, setCurrentSection] = useState(1);
+  const [currentDiscussion, setCurrentDiscussion] = useState([]);
+  const discussionPerPage = 2;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -67,6 +71,7 @@ const DetailBarang = () => {
             setDiskusi(sortedDiskusi);
           } catch (diskusiError) {
             console.error("Error fetching diskusi produk:", diskusiError);
+            toast.error("Gagal menampilkan diskusi produk!");
             setDiskusi([]);
           }
 
@@ -93,7 +98,15 @@ const DetailBarang = () => {
         setLoading(false);
       }
 
-      if(localStorage.getItem(authToken)){
+      await fetchUserData();
+
+    };
+
+    fetchData();
+  }, [id]);
+
+  const fetchUserData = async () => {
+    if(localStorage.getItem("authToken")){
         try {
           const token = localStorage.getItem("authToken");
           if (!token) throw new Error("Token tidak ditemukan");
@@ -110,14 +123,11 @@ const DetailBarang = () => {
           }
         } catch (error) {
           setError("Gagal memuat data user!");
+          toast.error("Gagal memuat data user!");
           console.error("Error:", err);
         }
       }
-
-    };
-
-    fetchData();
-  }, [id]);
+  }
 
   const handleGoToDiskusi = () => {
     navigate(`/diskusi-produk/${id}`);
@@ -164,18 +174,66 @@ const DetailBarang = () => {
   };
 
   const fetchDiskusi = async () => {
-    if(toggleDiskusi) {
-      try {
-        const diskusiResponse = await GetDiskusiProdukByIdBarang(id);
-        const sortedDiskusi = diskusiResponse.data ? 
-          diskusiResponse.data : 
-          [];
-        setDiskusi(sortedDiskusi);
-      } catch (diskusiError) {
-        console.error("Error fetching diskusi produk:", diskusiError);
-        setDiskusi([]);
+    try {
+      const diskusiResponse = await GetDiskusiProdukByIdBarang(id);
+      const diskusiData = diskusiResponse.data ? diskusiResponse.data : [];
+      setDiskusi(diskusiData);
+    } catch (diskusiError) {
+      console.error("Error fetching diskusi produk:", diskusiError);
+      toast.error("Gagal menampilkan diskusi produk!");
+      setDiskusi([]);
+    }
+  }
+
+  const paginationDiscussion = () => {
+    if(diskusi.length > 0) {
+      if(toggleDiskusi) {
+        setCurrentDiscussion(diskusi)
+      } else {
+        setCurrentDiscussion(diskusi.slice(((currentSection-1)*discussionPerPage), (currentSection*discussionPerPage)));
       }
-    } else {
+    }
+  }
+
+  useEffect(() => {
+    fetchDiskusi();
+    paginationDiscussion();
+  }, [diskusi])
+  
+  const onSubmitPertanyaan = async (pertanyaan) => {
+    try {
+      const id_barang = barang.id_barang;
+      const id_pembeli = pembeli.id_pembeli;
+  
+      const dataPegawai = await GetAllPegawai();
+      const customerService = dataPegawai.data.find(p => p.Akun.role === "Customer Service");
+      const id_customer_service = customerService.id_pegawai;
+      
+      const diskusiProduk = {
+        id_barang: id_barang,
+        id_customer_service: id_customer_service,
+        id_pembeli: id_pembeli,
+        pertanyaan: pertanyaan
+      }
+  
+      await CreateDiskusiProduk(diskusiProduk);
+  
+      fetchDiskusi();
+    } catch (error) {
+      console.error("Gagal menambahkan pertanyaan: ", error);
+      toast.error("Gagal menambahkan pertanyaan!");
+    }
+  }
+
+  const onSubmitjawaban = async (jawaban) => {
+    try {
+      const id_diskusi_produk = selectedDiscussion;
+      const id_customer_service = customerService.id_pegawai;
+      const data = {
+        jawaban: jawaban,
+        id_customer_service: id_customer_service
+      }
+      
       try {
         const diskusiResponse = await GetDiskusiProdukByIdBarang(id);
         const sortedDiskusi = diskusiResponse.data ? 
@@ -186,51 +244,14 @@ const DetailBarang = () => {
         console.error("Error fetching diskusi produk:", diskusiError);
         setDiskusi([]);
       }
-    }
-  }
   
-  const onSubmitPertanyaan = async (pertanyaan) => {
-    const id_barang = barang.id_barang;
-    const id_pembeli = pembeli.id_pembeli;
-
-    const dataPegawai = await GetAllPegawai();
-    const customerService = dataPegawai.data.find(p => p.Akun.role === "Customer Service");
-    const id_customer_service = customerService.id_pegawai;
-    
-    const diskusiProduk = {
-      id_barang: id_barang,
-      id_customer_service: id_customer_service,
-      id_pembeli: id_pembeli,
-      pertanyaan: pertanyaan
+      await UpdateDiskusiProduk(id_diskusi_produk, data);
+  
+      fetchDiskusi();
+    } catch (error) {
+      console.error("Gagal menambahkan jawaban: ", error);
+      toast.error("Gagal menambahkan jawaban!");
     }
-
-    await CreateDiskusiProduk(diskusiProduk);
-
-    fetchDiskusi();
-  }
-
-  const onSubmitjawaban = async (jawaban) => {
-    const id_diskusi_produk = selectedDiscussion;
-    const id_customer_service = customerService.id_pegawai;
-    const data = {
-      jawaban: jawaban,
-      id_customer_service: id_customer_service
-    }
-    
-    try {
-      const diskusiResponse = await GetDiskusiProdukByIdBarang(id);
-      const sortedDiskusi = diskusiResponse.data ? 
-        diskusiResponse.data.slice(0, 2) : 
-        [];
-      setDiskusi(sortedDiskusi);
-    } catch (diskusiError) {
-      console.error("Error fetching diskusi produk:", diskusiError);
-      setDiskusi([]);
-    }
-
-    await UpdateDiskusiProduk(id_diskusi_produk, data);
-
-    fetchDiskusi();
   }
 
   const showAllDiskusi = async () => {
@@ -462,7 +483,7 @@ const DetailBarang = () => {
                   padding: '16px 24px' 
                 }}
               >
-                <h5 style={{ fontWeight: 'bold', color: '#03081F', fontSize: '18px', margin: 0 }}>
+                <h5 id="diskusi-produk" style={{ fontWeight: 'bold', color: '#03081F', fontSize: '18px', margin: 0 }}>
                   Diskusi Produk
                 </h5>
                 <button 
@@ -485,7 +506,7 @@ const DetailBarang = () => {
               </div>
               <div className="card-body p-4">
                 {diskusi.length > 0 ? (
-                  diskusi.map((item) => (
+                  currentDiscussion.map((item) => (
                     <div key={item.id_diskusi_produk} className="border-bottom pb-3 mb-3">
                       {/* Pembeli's Question */}
                       <div className="d-flex align-items-center mb-2">
@@ -518,7 +539,7 @@ const DetailBarang = () => {
                       <p style={{ color: '#03081F', fontSize: '14px', marginBottom: '16px', marginLeft: '52px' }}>
                         {item.pertanyaan}
                       </p>
-                      { akun && akun.role == "Customer Service" && item.jawaban == "" ? <div className="d-flex w-100 justify-content-end">
+                      { akun && akun.role == "Customer Service" && (item.jawaban == "" || item.jawaban == null) ? <div className="d-flex w-100 justify-content-end">
                         <button className='btn btn-success rounded-pill px-5' onClick={() => {setSelectedDiscussion(item.id_diskusi_produk)}} type="button" data-bs-toggle="modal" data-bs-target="#answer-diskusi-modal">Jawab</button>
                       </div> : <></>}
 
@@ -569,6 +590,27 @@ const DetailBarang = () => {
                     </p>
                   </div>
                 )}
+
+                { diskusi.length == 0 ? <></> 
+                : 
+                <>
+                  <nav aria-label="Page navigation example" className='my-4'>
+                    <ul class="pagination justify-content-center">
+                      <li className={`page-item ${currentSection === 1 ? 'disabled' : ''}`}>
+                        <button className={`page-link ${currentSection === 1 ? '' : 'text-success'}`} onClick={() => setCurrentSection(currentSection - 1)} href="#diskusi-produk">Previous</button>
+                      </li>
+                      {[...Array(Math.ceil(diskusi.length / discussionPerPage))].map((_, index) => (
+                        <li className={`page-item ${currentSection === index + 1 ? 'active' : ''}`} key={index}>
+                          <button className={`page-link ${currentSection === index + 1 ? 'bg-success text-white border-success' : 'text-success'}`} onClick={() => setCurrentSection(index + 1)} href="#diskusi-produk">{index + 1}</button>
+                        </li>
+                      ))}
+                      <li className={`page-item ${currentSection === (Math.ceil(diskusi.length/discussionPerPage)) ? 'disabled' : ''}`}>
+                        <button className={`page-link ${currentSection === (Math.ceil(diskusi.length/discussionPerPage)) ? '' : 'text-success'}`} onClick={() => setCurrentSection(currentSection + 1)} href="#diskusi-produk">Next</button>
+                      </li>
+                    </ul>
+                  </nav>
+                </>}
+
 
                 <div className="text-center mt-4">
                   {

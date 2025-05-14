@@ -5,6 +5,7 @@ import { authService } from "../api/authService";
 import { decodeToken } from "../utils/jwtUtils";
 import LoginRegister from '../components/form/LoginRegister';
 import ForgotPasswordModal from '../components/modal/ForgotPasswordModal';
+import { toast } from 'sonner';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -68,14 +69,12 @@ const LoginPage = () => {
       const token = await authService.login({ email, password });
 
       const storedToken = localStorage.getItem("authToken");
+
       if (!storedToken) {
         throw new Error("Token tidak ditemukan setelah login.");
       }
 
-      const role = decodeToken(storedToken);
-      if (!role) {
-        throw new Error("Role tidak ditemukan di token.");
-      }
+      const role = decodeToken(storedToken).role;
 
       switch (role) {
         case "Pembeli":
@@ -94,6 +93,8 @@ const LoginPage = () => {
       } else {
         setError("Gagal masuk ke dalam halaman akun!");
       }
+      toast.error("Gagal masuk ke dalam halaman akun!");
+      console.error(err);
     }
   }
 

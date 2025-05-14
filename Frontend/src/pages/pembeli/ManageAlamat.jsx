@@ -5,6 +5,7 @@ import { apiPembeli } from '../../clients/PembeliService';
 import DeleteAlamatModal from '../../components/modal/DeleteAlamatModal';
 import AddAlamatModal from '../../components/modal/AddAlamatModal';
 import UpdateAlamatModal from '../../components/modal/UpdateAlamatModal';
+import { toast } from 'sonner';
 
 const ManageAlamat = () => {
     const [dataAkun, setDataAkun] = useState(null);
@@ -17,57 +18,71 @@ const ManageAlamat = () => {
     const [filteredAlamat, setFilteredAlamat] = useState([]);
 
     const deleteAlamat = async (id_alamat) => {
-        // hapus alamat
-        const response = await apiAlamatPembeli.deleteAlamatPembeli(id_alamat);
-
-        // refresh list alamat
-        const alamat = await apiAlamatPembeli.getAlamatPembeliByIdPembeli(dataPembeli.id_pembeli);
-        setDataAlamat(alamat);
-        return response;
+        try {
+            // hapus alamat
+            const response = await apiAlamatPembeli.deleteAlamatPembeli(id_alamat);
+    
+            // refresh list alamat
+            const alamat = await apiAlamatPembeli.getAlamatPembeliByIdPembeli(dataPembeli.id_pembeli);
+            setDataAlamat(alamat);
+            if(response) toast.success("Berhasil menghapus alamat!");
+            return response;
+        } catch (error) {
+            console.error("Gagal menghapus alamat: ", error);
+            toast.error("Gagal menghapus alamat!");
+        }
     }
 
     const addAlamat = async (newAlamat) => {
-        //  tambah alamat
-        const response = await apiAlamatPembeli.createAlamatPembeli(newAlamat);
-
-        // ganti alamat utama
-        if(newAlamat.is_main_address) {
-            const alamatUtama = dataAlamat.find((alamat) => alamat.is_main_address === true);
-          
-            if (alamatUtama) {
-              alamatUtama.is_main_address = 0;
-              await apiAlamatPembeli.updateAlamatPembeli(alamatUtama.id_alamat, alamatUtama);
+        try {
+            //  tambah alamat
+            const response = await apiAlamatPembeli.createAlamatPembeli(newAlamat);
+    
+            // ganti alamat utama
+            if(newAlamat.is_main_address) {
+                const alamatUtama = dataAlamat.find((alamat) => alamat.is_main_address === true);
+              
+                if (alamatUtama) {
+                  alamatUtama.is_main_address = 0;
+                  await apiAlamatPembeli.updateAlamatPembeli(alamatUtama.id_alamat, alamatUtama);
+                }
             }
+              
+            // refresh list alamat
+            const alamat = await apiAlamatPembeli.getAlamatPembeliByIdPembeli(dataPembeli.id_pembeli);
+            setDataAlamat(alamat);
+            if(response) toast.success("Berhasil menambahkan alamat!");
+            return response;
+        } catch (error) {
+            console.error('Gagal menambahkan alamat: ', error);
+            toast.error("Gagal menambahkan alamat!");
         }
-          
-
-        // refresh list alamat
-        const alamat = await apiAlamatPembeli.getAlamatPembeliByIdPembeli(dataPembeli.id_pembeli);
-        setDataAlamat(alamat);
-        return response;
     }
 
     const editAlamat = async (newAlamat) => {
-        // ganti alamat utama
-        if(newAlamat.is_main_address) {
-            const alamatUtama = dataAlamat.find((alamat) => alamat.is_main_address === true);
-          
-            if (alamatUtama) {
-              alamatUtama.is_main_address = 0;
-              await apiAlamatPembeli.updateAlamatPembeli(alamatUtama.id_alamat, alamatUtama);
+        try {
+            // ganti alamat utama
+            if(newAlamat.is_main_address) {
+                const alamatUtama = dataAlamat.find((alamat) => alamat.is_main_address === true);
+              
+                if (alamatUtama) {
+                  alamatUtama.is_main_address = 0;
+                  await apiAlamatPembeli.updateAlamatPembeli(alamatUtama.id_alamat, alamatUtama);
+                }
             }
+    
+            // edit alamat
+            const response = await apiAlamatPembeli.updateAlamatPembeli(newAlamat.id_alamat, newAlamat);
+    
+            // refresh list alamat
+            const alamat = await apiAlamatPembeli.getAlamatPembeliByIdPembeli(dataPembeli.id_pembeli);
+            setDataAlamat(alamat);
+            if(response) toast.success("Berhasil mengubah alamat!");
+            return response;
+        } catch (error) {
+            console.error("Gagal mengubah alamat: ", error);
+            toast.error("Gagal menghapus alamat!");
         }
-          
-
-        // console.log('Data baru: ', newAlamat);
-
-        // edit alamat
-        const response = await apiAlamatPembeli.updateAlamatPembeli(newAlamat.id_alamat, newAlamat);
-
-        // refresh list alamat
-        const alamat = await apiAlamatPembeli.getAlamatPembeliByIdPembeli(dataPembeli.id_pembeli);
-        setDataAlamat(alamat);
-        return response;
     }
 
     const handleShowModal = (alamat) => {
@@ -97,10 +112,10 @@ const ManageAlamat = () => {
                 const alamat = await apiAlamatPembeli.getAlamatPembeliByIdPembeli(pembeli.id_pembeli);
                 // Pastikan response adalah array, jika tidak convert ke array
                 setDataAlamat(Array.isArray(alamat) ? alamat : [alamat]);
-                
             } catch (err) {
                 setError(err.message);
                 console.error("Error:", err);
+                toast.error("Gagal mengambil data!");
             } finally {
                 setLoading(false);
             }

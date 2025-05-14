@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import maskot1 from "../../assets/images/maskot1.png"; 
 import maskot2 from "../../assets/images/maskot2.png"; 
 import { authService } from "../../api/authService";
+import { toast } from "sonner";
 
 const LoginRegister = ({ onLoginSuccess, onRegisterSuccess }) => {
   const [isRightPanelActive, setIsRightPanelActive] = useState(false);
@@ -40,13 +41,19 @@ const LoginRegister = ({ onLoginSuccess, onRegisterSuccess }) => {
       const response = await authService.register(signUpData);
       setIsRightPanelActive(false);
 
-      if(!response) onRegisterSuccess({ email, password });
+      if(response) { 
+        onRegisterSuccess({ email, password });
+        toast.success('Registrasi berhasil!');
+      }
     } catch (err) {
       if (err.response && err.response.data && err.response.data.message) {
         setError(err.response.data.message);
+        console.error(err.response.data.message);
       } else {
         setError("Registrasi gagal. Silakan coba lagi.");
       }
+      toast.error("Registrasi gagal!");
+      console.error(err);
     }
   };
 

@@ -4,75 +4,109 @@ import { Container } from 'react-bootstrap';
 import { DeleteOrganisasiAmal, GetAllOrganisasiAmal, UpdateOrganisasiAmal } from '../../clients/OrganisasiAmalService';
 import DeleteOrganisasiModal from '../../components/modal/DeleteOrganisasiModal';
 import UpdateOrganisasiModal from '../../components/modal/UpdateOrganisasiModal';
+import Pagination from "../../components/pagination/Pagination";
+import { toast } from 'sonner';
 
 const ManageOrganisasiPage = () => {
     const [organisasi, setOrganisasi] = useState([]);
-    const [filteredOrganisasi, setFilteredOrganisasi] = useState([]);
     const [selectedOrganisasi, setSelectedOrganisasi] = useState(null);
     const [keyword, setKeyword] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [sortMethod, setSortMethod] = useState("id-ascending");
+    const itemsPerPage = 5;
 
-    const fetchOrganisasi =  async () => {
-        const data = await GetAllOrganisasiAmal();
-        setOrganisasi(Array.isArray(data.data) ? data.data : [data.data]);
-    }
+    const fetchOrganisasi = async () => {
+        try {
+            const data = await GetAllOrganisasiAmal();
+            setOrganisasi(Array.isArray(data.data) ? data.data : [data.data]);
+        } catch (error) {
+            toast.error("Gagal menampilkan data organisasi!");
+            console.error("Gagal menampilkan data organisasi: ", error);
+        }
+    };
 
     const updateOrganisasi = async (formData) => {
         try {
             const response = await UpdateOrganisasiAmal(selectedOrganisasi.id_organisasi, formData);
-            console.log(response);  // Menampilkan data response dari backend
             if (response) {
                 await fetchOrganisasi();
-                console.log("changed");
+                toast.success("Berhasil mengubah data organisasi!");
             }
         } catch (error) {
-            console.error("Update failed:", error);
+            toast.error("Gagal mengubah data organisasi!");
+            console.error("Gagal mengubah data organisasi: ", error);
         }
-    };    
+    };
 
     const deleteOrganisasi = async (id) => {
-        await DeleteOrganisasiAmal(id);
-        await fetchOrganisasi();
-    }
-
-    const searchOrganisasi = async (word) => {
-        const data = organisasi.filter((org) => {
-            word = word.toLowerCase();
-            return(
-                org.nama_organisasi.toLowerCase().includes(word) ||
-                org.alamat.toLowerCase().includes(word) ||
-                org.Akun.email.toLowerCase().includes(word) ||
-                org.id_organisasi.toLowerCase().includes(word)
-            );
-        });
-        setFilteredOrganisasi(data);
-    }
+        try {
+            const response = await DeleteOrganisasiAmal(id);
+            if (response) {
+                await fetchOrganisasi();
+                toast.success("Berhasil menghapus data organisasi!");
+            }
+        } catch (error) {
+            toast.error("Gagal menghapus data organisasi!");
+            console.error("Gagal menghapus data organisasi: ", error);
+        }
+    };
 
     const formatDateTime = (dateTimeString) => {
         const date = new Date(dateTimeString);
         return new Intl.DateTimeFormat('id-ID', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
         }).format(date);
     };
 
-    useEffect(() => {
-        if (keyword.trim() !== "") {
-            const word = keyword.toLowerCase();
-            searchOrganisasi(word);
-        } else {
-            setFilteredOrganisasi([]);
-        }
-    }, [organisasi, keyword]);
-    
+    const extractIdNumber = (id) => {
+        const match = id.match(/\d+/);
+        return match ? parseInt(match[0]) : 0;
+    };
 
     useEffect(() => {
         fetchOrganisasi();
     }, []);
 
-    return(
+    // Filter data berdasarkan keyword
+    const filtered = organisasi.filter((org) => {
+        return (
+            org.nama_organisasi.toLowerCase().includes(keyword.toLowerCase()) ||
+            org.alamat.toLowerCase().includes(keyword.toLowerCase()) ||
+            org.Akun.email.toLowerCase().includes(keyword.toLowerCase()) ||
+            org.id_organisasi.toLowerCase().includes(keyword.toLowerCase())
+        );
+    });
+
+    const sortedOrganisasi = [...filtered].sort((a, b) => {
+        switch (sortMethod) {
+            case "nama-ascending":
+                return a.nama_organisasi.localeCompare(b.nama_organisasi);
+            case "nama-descending":
+                return b.nama_organisasi.localeCompare(a.nama_organisasi);
+            case "date-ascending":
+                return new Date(a.tanggal_registrasi) - new Date(b.tanggal_registrasi);
+            case "date-descending":
+                return new Date(b.tanggal_registrasi) - new Date(a.tanggal_registrasi);
+            case "id-ascending":
+                return extractIdNumber(a.id_organisasi) - extractIdNumber(b.id_organisasi);
+            case "id-descending":
+                return extractIdNumber(b.id_organisasi) - extractIdNumber(a.id_organisasi);
+            default:
+                return 0;
+        }
+    });
+
+    const paginatedOrganisasi = sortedOrganisasi.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+    const totalPages = Math.ceil(filtered.length / itemsPerPage);
+
+    return (
         <Container fluid className="p-0 bg-white">
             <style jsx>
                 {`
@@ -145,85 +179,81 @@ const ManageOrganisasiPage = () => {
 
             <div className="container mt-5">
                 <div className="d-flex justify-content-between align-items-center mb-4">
-                <h4 className='fw-bold'>Data Organisasi Amal</h4>
+                    <h4 className='fw-bold'>Data Organisasi Amal</h4>
                 </div>
 
-                <input type="text" className="form-control search-bar mb-4" placeholder="Cari organisasi..." value={keyword} onChange={(e) => { 
-                    const word = e.target.value;
-                    setKeyword(word);
-                    if(word.length != 0) {
-                        searchOrganisasi(word);
-                    } else {
-                        setFilteredOrganisasi([]);
-                    }
-                }} onSubmit={(e) => {e.preventDefault();}}/>
+                <div className="d-flex flex-column flex-md-row">
 
-                {organisasi.length == 0 && keyword.length == 0 && (<div className="mx-auto my-5 text-center fw-bold">Belum memiliki organisasi</div>)}
+                    <input
+                        type="text"
+                        className="form-control search-bar mb-4"
+                        placeholder="Cari organisasi..."
+                        value={keyword}
+                        onChange={(e) => {
+                            setKeyword(e.target.value);
+                            setCurrentPage(1); // Reset ke halaman 1 setiap kali search berubah
+                        }}
+                    />
 
-                {keyword.length == 0 && organisasi.map((org, index) => (
+                    <div class="dropdown ">
+                        <button class="btn dropdown-toggle rounded-pill" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Urutkan berdasarkan
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class={`dropdown-item ${sortMethod == 'nama-ascending' ? 'fw-bold' : ''}`} href="#" onClick={() => {setSortMethod('nama-ascending')}}>nama (menaik)</a></li>
+                            <li><a class={`dropdown-item ${sortMethod == 'nama-descending' ? 'fw-bold' : ''}`} href="#" onClick={() => {setSortMethod('nama-descending')}}>nama (menurun)</a></li>
+                            <li><a class={`dropdown-item ${sortMethod == 'date-ascending' ? 'fw-bold' : ''}`} href="#" onClick={() => {setSortMethod('date-ascending')}}>tanggal registrasi (menaik)</a></li>
+                            <li><a class={`dropdown-item ${sortMethod == 'date-descending' ? 'fw-bold' : ''}`} href="#" onClick={() => {setSortMethod('date-descending')}}>tanggal registrasi (menurun)</a></li>
+                            <li><a class={`dropdown-item ${sortMethod == 'id-ascending' ? 'fw-bold' : ''}`} href="#" onClick={() => {setSortMethod('id-ascending')}}>id organisasi (menaik)</a></li>
+                            <li><a class={`dropdown-item ${sortMethod == 'id-descending' ? 'fw-bold' : ''}`} href="#" onClick={() => {setSortMethod('id-descending')}}>id organisasi (menurun)</a></li>
+                        </ul>
+                    </div>
+                </div>
+
+                {organisasi.length === 0 && (
+                    <div className="mx-auto my-5 text-center fw-bold">Belum memiliki organisasi</div>
+                )}
+
+                {keyword.length > 0 && filtered.length === 0 && (
+                    <div className="mx-auto my-5 text-center fw-bold">Tidak dapat menemukan organisasi</div>
+                )}
+
+                {paginatedOrganisasi.map((org, index) => (
                     <div className="org-card d-flex flex-column" key={index}>
                         <div className='org-profile w-100'>
                             <div className="org-info">
                                 <p className="mb-1 text-muted">{org.id_organisasi}</p>
                                 <h5 className="mb-1">{org.nama_organisasi}</h5>
-                                <p className="mb-1">Alamat: {org.alamat}</p>  
+                                <p className="mb-1">Alamat: {org.alamat}</p>
                                 <p className="mb-1">Tanggal Registrasi: {formatDateTime(org.tanggal_registrasi)}</p>
                                 <p className="mb-0">Email: {org.Akun.email}</p>
                             </div>
                             <img
-                                src={org.Akun.profile_picture == "" ? "http://localhost:3000/uploads/profile_picture/default.jpg" : `http://localhost:3000/uploads/profile_picture/${org.Akun.profile_picture}`}
+                                src={org.Akun.profile_picture === "" ? "http://localhost:3000/uploads/profile_picture/default.jpg" : `http://localhost:3000/uploads/profile_picture/${org.Akun.profile_picture}`}
                                 alt="organisasi"
                                 className="org-image mb-2 align-self-center"
                             />
                         </div>
                         <div className="btn-group d-flex flex-row justify-end">
-                            <button className="btn btn-danger btn-delete me-3 rounded" onClick={() => {setSelectedOrganisasi(org)}} type="button" data-bs-toggle="modal" data-bs-target="#delete-organisasi-modal">Hapus</button>
-                            <button className="btn btn-success btn-edit rounded" onClick={() => {setSelectedOrganisasi(org)}} type="button" data-bs-toggle="modal" data-bs-target="#update-organisasi-modal">Edit</button>
+                            <button className="btn btn-danger btn-delete me-3 rounded" onClick={() => setSelectedOrganisasi(org)} type="button" data-bs-toggle="modal" data-bs-target="#delete-organisasi-modal">Hapus</button>
+                            <button className="btn btn-success btn-edit rounded" onClick={() => setSelectedOrganisasi(org)} type="button" data-bs-toggle="modal" data-bs-target="#update-organisasi-modal">Edit</button>
                         </div>
                     </div>
                 ))}
 
-                {keyword.length > 0 && filteredOrganisasi.length == 0 && (<div className="mx-auto my-5 text-center fw-bold">Tidak dapat menemukan organisasi</div>)}
+                <DeleteOrganisasiModal organisasi={selectedOrganisasi} onDelete={deleteOrganisasi} />
+                <UpdateOrganisasiModal organisasi={selectedOrganisasi} onEdit={updateOrganisasi} />
 
-                {keyword.length > 0 && filteredOrganisasi.map((org, index) => (
-                    <div className="org-card d-flex flex-column" key={index}>
-                        <div className='org-profile w-100'>
-                            <div className="org-info">
-                                <p className="mb-1 text-muted">{org.id_organisasi}</p>
-                                <h5 className="mb-1">{org.nama_organisasi}</h5>
-                                <p className="mb-1">Alamat: {org.alamat}</p>  
-                                <p className="mb-1">Tanggal Registrasi: {formatDateTime(org.tanggal_registrasi)}</p>
-                                <p className="mb-0">Email: {org.Akun.email}</p>
-                            </div>
-                            <img
-                                src={org.Akun.profile_picture == "" ? "http://localhost:3000/uploads/profile_picture/default.jpg" : `http://localhost:3000/uploads/profile_picture/${org.Akun.profile_picture}`}
-                                alt="organisasi"
-                                className="org-image mb-2 align-self-center"
-                            />
-                        </div>
-                        <div className="btn-group d-flex flex-row justify-end">
-                            <button className="btn btn-danger btn-delete me-3 rounded" onClick={() => {setSelectedOrganisasi(org)}} type="button" data-bs-toggle="modal" data-bs-target="#delete-organisasi-modal">Hapus</button>
-                            <button className="btn btn-success btn-edit rounded" onClick={() => {setSelectedOrganisasi(org)}} type="button" data-bs-toggle="modal" data-bs-target="#update-organisasi-modal">Edit</button>
-                        </div>
-                    </div>
-                ))}
-
-                <DeleteOrganisasiModal organisasi={selectedOrganisasi} onDelete={deleteOrganisasi}/>
-                <UpdateOrganisasiModal organisasi={selectedOrganisasi} onEdit={updateOrganisasi}/>
-
-                {/* Pagination
-                <nav className="d-flex justify-content-center mt-4">
-                <ul className="pagination">
-                    {[1, 2, 3, 4, 5].map((page) => (
-                    <li key={page} className="page-item">
-                        <button className="page-link">{page}</button>
-                    </li>
-                    ))}
-                </ul>
-                </nav> */}
+                {filtered.length > 0 && (
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        paginate={(numberPage) => setCurrentPage(numberPage)}
+                    />
+                )}
             </div>
         </Container>
-    )
+    );
 };
 
 export default ManageOrganisasiPage;

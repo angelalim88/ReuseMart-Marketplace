@@ -51,18 +51,18 @@ const UpdateAlamatModal = ({ alamat, onEdit }) => {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header">
-                <h1 className="modal-title fs-5" id="exampleModalLabel">Tambah Alamat</h1>
+                <h1 className="modal-title fs-5" id="exampleModalLabel">Edit Alamat</h1>
                 <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close" onClick={resetForm}></button>
               </div>
               <div className="modal-body">
                 <div className="mb-3">
                   <label htmlFor="nama-alamat" className="form-label fw-semibold">Nama Alamat</label>
-                  <input type="text" className="form-control" id="nama-alamat" name="nama_alamat" value={namaAlamat} onChange={(e) => setNamaAlamat(e.target.value)} />
+                  <input required type="text" className="form-control" id="nama-alamat" name="nama_alamat" value={namaAlamat} onChange={(e) => setNamaAlamat(e.target.value)} />
                 </div>
 
                 <div className="mb-3">
                   <label htmlFor="alamat-lengkap" className="form-label fw-semibold">Alamat Lengkap</label>
-                  <input type="text" className="form-control" id="alamat-lengkap" name="alamat_lengkap" value={alamatLengkap} onChange={(e) => setAlamatLengkap(e.target.value)} />
+                  <input required type="text" className="form-control" id="alamat-lengkap" name="alamat_lengkap" value={alamatLengkap} onChange={(e) => setAlamatLengkap(e.target.value)} />
                 </div>
 
                 <div className="mb-3">
