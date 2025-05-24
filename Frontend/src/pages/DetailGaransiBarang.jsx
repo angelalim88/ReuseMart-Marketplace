@@ -1,21 +1,20 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { decodeToken } from '../utils/jwtUtils';
 import { useParams, useNavigate } from 'react-router-dom';
 import { GetBarangById } from "../clients/BarangService";
 import { GetPenitipById } from "../clients/PenitipService";
 import { GetReviewProdukByIdBarang } from "../clients/ReviewService";
-import { CreateDiskusiProduk, GetDiskusiProdukByIdBarang, UpdateDiskusiProduk } from "../clients/DiskusiProdukService";
-import { FaStar, FaShoppingCart } from 'react-icons/fa';
+import { CreateDiskusiProduk, GetDiskusiProdukById, GetDiskusiProdukByIdBarang, UpdateDiskusiProduk } from "../clients/DiskusiProdukService";
+import { FaStar, FaShoppingCart, FaPlus, FaMinus, FaArrowRight, FaComment } from 'react-icons/fa';
 import "bootstrap/dist/css/bootstrap.min.css";
 import AddDiskusiModal from "../components/modal/AddDiskusiModal";
 import AnswerDiskusiModal from '../components/modal/AnswerDiskusiModal';
 import { apiPembeli } from "../clients/PembeliService";
-import { GetAllPegawai, GetPegawaiByAkunId } from "../clients/PegawaiService";
+import { GetAllPegawai, GetPegawaiByAkunId, GetPegawaiById } from "../clients/PegawaiService";
 import { toast } from 'sonner';
-import { apiKeranjang } from '../clients/KeranjangService';
-import AddKeranjangModal from '../components/modal/AddKeranjangModal';
+import { Badge } from 'react-bootstrap';
 
-const DetailBarang = () => {
+const DetailGaransiBarang = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [barang, setBarang] = useState(null);
@@ -135,6 +134,10 @@ const DetailBarang = () => {
 
   const handleGoToDiskusi = () => {
     navigate(`/diskusi-produk/${id}`);
+  };
+
+  const handleAddToCart = () => {
+    console.log(`Added ${quantity} of ${barang.nama} to cart`);
   };
 
   const handleBuyNow = () => {
@@ -306,32 +309,6 @@ const DetailBarang = () => {
     );
   }
 
-  const handleAddtoCart = async (id) => {
-    try {
-      if(pembeli && barang) {
-        const responseGet = await apiKeranjang.getKeranjangByIdPembeli(pembeli.id_pembeli);
-        if(responseGet) {
-          const duplicateData = responseGet.find((cart) => {
-            return cart.id_barang == id
-          });
-
-          if(duplicateData) {
-            toast.warning("Barang ini sudah ada di keranjang anda!");
-          } else {
-            console.log({id_barang: id, id_pembeli: pembeli.id_pembeli});
-            const responseAdd = await apiKeranjang.createKeranjang({id_barang: id, id_pembeli: pembeli.id_pembeli});
-            if(responseAdd) {
-              toast.success("Berhasil menambahkan produk ke keranjang!");
-            }
-          }
-        }
-      }
-    } catch (error) {
-      toast.error("Gagal menambahkan produk ke keranjang!");
-      console.error("Gagal menambahkan produk ke keranjang: ", error);
-    }
-  }
-
   return (
     <div className="py-5" style={{ backgroundColor: '#F8F9FA' }}>
       <div className="container">
@@ -383,6 +360,8 @@ const DetailBarang = () => {
 
               {/* Product Details */}
               <div className="col-md-6 mb-4">
+                <Badge>Barang dengan Garansi</Badge>
+                <br />
                 <h1 style={{ fontSize: '30px', fontWeight: '700', color: '#03081F', marginBottom: '12px' }}>
                   {barang.nama}
                 </h1>
@@ -417,7 +396,7 @@ const DetailBarang = () => {
                   </span>
                 </div>
                 <div className="mb-3">
-                  <span style={{ color: '#03081F', fontSize: '14px', fontWeight: '500' }}>Status QC: </span>
+                  <span style={{ color: '#03081F', fontSize: '14px', fontWeight: '500' }}>Status Garansi: </span>
                   <span 
                     className="badge" 
                     style={{ 
@@ -428,7 +407,7 @@ const DetailBarang = () => {
                       borderRadius: '12px'
                     }}
                   >
-                    {barang.status_qc}
+                    Aktif
                   </span>
                 </div>
                 {barang.garansi_berlaku && (
@@ -443,236 +422,6 @@ const DetailBarang = () => {
                     </span>
                   </div>
                 )}
-              </div>
-            </div>
-
-            {/* Seller Information */}
-            {penitip && (
-              <div className="card shadow-sm border-0 rounded-3 mb-4">
-                <div className="card-body d-flex align-items-center justify-content-between p-4">
-                  <div className="d-flex align-items-center">
-                    <img 
-                      src={penitip.Akun.profile_picture || "/assets/images/default-avatar.jpg"} 
-                      alt={penitip.nama_penitip} 
-                      style={{
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '50%',
-                        marginRight: '16px',
-                        objectFit: 'cover',
-                        border: '2px solid #028643'
-                      }}
-                    />
-                    <div>
-                      <div className="d-flex align-items-center">
-                        <h5 style={{ color: '#03081F', fontSize: '16px', fontWeight: 'bold', margin: 0 }}>
-                          {penitip.nama_penitip}
-                        </h5>
-                        {reviewStats.penitipBadge === 1 && (
-                          <span 
-                            className="badge ms-2" 
-                            style={{ 
-                              backgroundColor: '#FC8A06', 
-                              color: '#FFFFFF', 
-                              fontSize: '10px', 
-                              padding: '4px 8px',
-                              borderRadius: '12px'
-                            }}
-                          >
-                            Top Seller
-                          </span>
-                        )}
-                      </div>
-                      <div className="d-flex align-items-center mt-1">
-                        <div className="d-flex text-warning me-2">
-                          {renderRatingStars(penitip.rating || 0)}
-                        </div>
-                        <span style={{ color: '#6C757D', fontSize: '12px' }}>
-                          ({penitip.total_poin || 100} Poin)
-                        </span>
-                      </div>
-                      <p style={{ color: '#6C757D', fontSize: '12px', margin: '4px 0 0 0' }}>
-                        Bergabung sejak {new Date(penitip.tanggal_registrasi).toLocaleDateString('id-ID', {
-                          month: 'long',
-                          year: 'numeric'
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Product Discussion */}
-            <div className="card shadow-sm border-0 rounded-3 mb-4">
-              <div 
-                className="card-header d-flex justify-content-between align-items-center" 
-                style={{ 
-                  backgroundColor: '#FFFFFF', 
-                  borderBottom: '1px solid #E9ECEF', 
-                  padding: '16px 24px' 
-                }}
-              >
-                <h5 id="diskusi-produk" style={{ fontWeight: 'bold', color: '#03081F', fontSize: '18px', margin: 0 }}>
-                  Diskusi Produk
-                </h5>
-                <button 
-                  className="btn" 
-                  style={{ 
-                    backgroundColor: '#028643', 
-                    color: '#FFFFFF', 
-                    borderRadius: '20px', 
-                    padding: '8px 24px', 
-                    fontWeight: 'bold',
-                    transition: 'background-color 0.3s ease',
-                    fontSize: '14px'
-                  }}
-                  onClick={toggleDiskusi ? unshowAllDiskusi : showAllDiskusi}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#026c38'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = '#028643'}
-                >
-                  {toggleDiskusi ? "Tutup" : "Lihat Semua Diskusi"}
-                </button>
-              </div>
-              <div className="card-body p-4">
-                {diskusi.length > 0 ? (
-                  currentDiscussion.map((item) => (
-                    <div key={item.id_diskusi_produk} className="border-bottom pb-3 mb-3">
-                      {/* Pembeli's Question */}
-                      <div className="d-flex align-items-center mb-2">
-                        <div
-                          style={{
-                            width: '40px',
-                            height: '40px',
-                            borderRadius: '50%',
-                            backgroundColor: '#E9ECEF',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            marginRight: '12px',
-                            fontSize: '14px',
-                            fontWeight: 'bold',
-                            color: '#03081F'
-                          }}
-                        >
-                          {item.Pembeli.nama.charAt(0)}
-                        </div>
-                        <div>
-                          <h6 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: '#03081F' }}>
-                            {item.Pembeli.nama}
-                          </h6>
-                          <small style={{ color: '#6C757D', fontSize: '12px' }}>
-                            {formatDateTime(item.tanggal_pertanyaan)}
-                          </small>
-                        </div>
-                      </div>
-                      <p style={{ color: '#03081F', fontSize: '14px', marginBottom: '16px', marginLeft: '52px' }}>
-                        {item.pertanyaan}
-                      </p>
-                      { akun && akun.role == "Customer Service" && (item.jawaban == "" || item.jawaban == null) ? <div className="d-flex w-100 justify-content-end">
-                        <button className='btn btn-success rounded-pill px-5' onClick={() => {setSelectedDiscussion(item.id_diskusi_produk)}} type="button" data-bs-toggle="modal" data-bs-target="#answer-diskusi-modal">Jawab</button>
-                      </div> : <></>}
-
-                      {/* Admin's Response */}
-                      {item.jawaban && (
-                        <div className="ms-5 mt-3">
-                          <div className="d-flex align-items-center mb-2">
-                            <div
-                              style={{
-                                width: '40px',
-                                height: '40px',
-                                borderRadius: '50%',
-                                backgroundColor: '#028643',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                marginRight: '12px',
-                                fontSize: '14px',
-                                fontWeight: 'bold',
-                                color: '#FFFFFF'
-                              }}
-                            >
-                              {item.Pegawai.nama_pegawai.charAt(0)}
-                            </div>
-                            <div>
-                              <h6 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold', color: '#03081F' }}>
-                                {item.Pegawai.nama_pegawai}
-                                <span className="ms-2 badge bg-info text-white" style={{ fontSize: '10px' }}>
-                                Customer Service
-                                </span>
-                              </h6>
-                              <small style={{ color: '#6C757D', fontSize: '12px' }}>
-                                {formatDateTime(item.tanggal_jawaban)}
-                              </small>
-                            </div>
-                          </div>
-                          <p style={{ color: '#03081F', fontSize: '14px', marginBottom: '0', marginLeft: '52px' }}>
-                            {item.jawaban}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-4">
-                    <p style={{ color: '#6C757D', fontSize: '14px', margin: 0 }}>
-                      Belum ada diskusi untuk produk ini.
-                    </p>
-                  </div>
-                )}
-
-                { diskusi.length == 0 ? <></> 
-                : 
-                <>
-                  <nav aria-label="Page navigation example" className='my-4'>
-                    <ul class="pagination justify-content-center">
-                      <li className={`page-item ${currentSection === 1 ? 'disabled' : ''}`}>
-                        <button className={`page-link ${currentSection === 1 ? '' : 'text-success'}`} onClick={() => setCurrentSection(currentSection - 1)} href="#diskusi-produk">Previous</button>
-                      </li>
-                      {[...Array(Math.ceil(diskusi.length / discussionPerPage))].map((_, index) => (
-                        <li className={`page-item ${currentSection === index + 1 ? 'active' : ''}`} key={index}>
-                          <button className={`page-link ${currentSection === index + 1 ? 'bg-success text-white border-success' : 'text-success'}`} onClick={() => setCurrentSection(index + 1)} href="#diskusi-produk">{index + 1}</button>
-                        </li>
-                      ))}
-                      <li className={`page-item ${currentSection === (Math.ceil(diskusi.length/discussionPerPage)) ? 'disabled' : ''}`}>
-                        <button className={`page-link ${currentSection === (Math.ceil(diskusi.length/discussionPerPage)) ? '' : 'text-success'}`} onClick={() => setCurrentSection(currentSection + 1)} href="#diskusi-produk">Next</button>
-                      </li>
-                    </ul>
-                  </nav>
-                </>}
-
-
-                <div className="text-center mt-4">
-                  {
-                    akun && akun.role == "Pembeli" ? 
-                    <button 
-                    className="btn" 
-                    style={{ 
-                      backgroundColor: '#FFFFFF',
-                      border: '2px solid #028643',
-                      color: '#028643', 
-                      borderRadius: '20px', 
-                      padding: '8px 24px', 
-                      fontWeight: 'bold',
-                      transition: 'all 0.3s ease'
-                    }}
-                    // onClick={handleGoToDiskusi}
-                    onMouseEnter={(e) => {
-                      e.target.style.backgroundColor = '#028643';
-                      e.target.style.color = '#FFFFFF';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.backgroundColor = '#FFFFFF';
-                      e.target.style.color = '#028643';
-                    }}
-                    data-bs-toggle="modal" data-bs-target="#add-diskusi-modal"
-                  >
-                    Mulai Diskusi Baru
-                  </button>
-                  : 
-                  <></>
-                  }
-                </div>
               </div>
             </div>
           </div>
@@ -780,9 +529,7 @@ const DetailBarang = () => {
                       e.target.style.backgroundColor = '#FFFFFF';
                       e.target.style.color = '#028643';
                     }}
-                    type="button"
-                    data-bs-toggle="modal" 
-                    data-bs-target="#add-keranjang-modal"
+                    onClick={handleAddToCart}
                   >
                     Keranjang
                   </button>
@@ -809,11 +556,8 @@ const DetailBarang = () => {
           </div>
         </div>
       </div>
-      <AddDiskusiModal onSubmit={onSubmitPertanyaan} />
-      <AnswerDiskusiModal onSubmit={onSubmitjawaban} />
-      <AddKeranjangModal barang={barang} onAdd={handleAddtoCart} />
     </div>
   );
 };
 
-export default DetailBarang;
+export default DetailGaransiBarang;

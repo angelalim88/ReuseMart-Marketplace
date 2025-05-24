@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import "bootstrap/dist/css/bootstrap.min.css";
 import CardProduk from '../components/card/CardProduk';
-import { GetAllBarang } from "../clients/BarangService";
+import { GetAllBarangGaransi } from "../clients/BarangService";
 import { FaFire, FaRegThumbsUp, FaTag, FaArrowRight, FaSearch } from 'react-icons/fa';
 import { Carousel } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useSearch } from '../utils/searchContext';
 
-const HomePage = () => {
+const BarangGaransiPage = () => {
   const navigate = useNavigate();
   const { searchQuery } = useSearch();
   const [barangList, setBarangList] = useState([]);
@@ -20,8 +20,8 @@ const HomePage = () => {
   useEffect(() => {
     const fetchBarang = async () => {
       try {
-        const response = await GetAllBarang();
-        console.log(response.data);
+        const response = await GetAllBarangGaransi();
+        console.log("Data barang: ", response.data);
         const filteredBarang = response.data.filter(item => item.status_qc !== "Tidak lulus");
         setBarangList(filteredBarang);
         setFilteredBarangList(filteredBarang);
@@ -407,49 +407,11 @@ const HomePage = () => {
           </>
         )}
       
-        {/* Berdasarkan Pencarianmu - Always show but filtered */}
+        {/* Barang dengan Garansi Aktif */}
         <div style={styles.sectionContainer}>
           <div style={styles.sectionHeader}>
             <h2 style={styles.sectionTitle}>
-              Berdasarkan Pencarianmu
-              <span style={styles.iconBadge}>
-                <FaRegThumbsUp size={14} />
-              </span>
-            </h2>
-            <a href="#" style={styles.seeAllLink} onClick={() => navigate("/produk")}>
-              Lihat Semua <FaArrowRight size={12} className="ms-2" />
-            </a>
-          </div>
-          
-          {filteredBarangList.length > 0 ? (
-            <div className="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-6">
-              {getRandomProducts(6).map((product, index) => (
-                <div className="col" key={index} style={styles.productColumn}>
-                  <CardProduk 
-                    image={
-                      product.gambar 
-                        ? product.gambar.split(',')[0].trim() 
-                        : '../src/assets/images/default-product.jpg'
-                    }
-                    title={product.nama}
-                    price={product.harga}
-                    onClick={() => navigate(`/barang/${product.id_barang}`)}
-                  />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="alert alert-info">
-              Tidak ada produk yang cocok dengan pencarian Anda.
-            </div>
-          )}
-        </div>
-      
-        {/* Produk Terhype - Always show but filtered */}
-        <div style={styles.sectionContainer}>
-          <div style={styles.sectionHeader}>
-            <h2 style={styles.sectionTitle}>
-              Produk Terhype
+              Barang dengan Garansi Aktif
               <span style={styles.iconBadge}>
                 <FaFire size={14} />
               </span>
@@ -471,7 +433,7 @@ const HomePage = () => {
                     }
                     title={product.nama}
                     price={product.harga}
-                    onClick={() => navigate(`/barang/${product.id_barang}`)}
+                    onClick={() => navigate(`/garansi/${product.id_barang}`)}
                   />
                 </div>
               ))}
@@ -487,4 +449,4 @@ const HomePage = () => {
   );
 };
 
-export default HomePage;
+export default BarangGaransiPage;

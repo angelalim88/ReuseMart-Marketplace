@@ -19,3 +19,6 @@ export const UpdateBarang = (id, data) =>
 export const DeleteBarang = (id) =>
     apiClient.delete(ENDPOINTS.DELETE_BARANG(id));
 
+export const GetAllBarangGaransi = () =>
+    apiClient.get(ENDPOINTS.GET_ALL_BARANG_GARANSI);
+

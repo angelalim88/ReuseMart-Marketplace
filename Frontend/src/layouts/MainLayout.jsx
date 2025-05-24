@@ -4,6 +4,7 @@ import Header from "../components/navigation/HeaderUtama";
 import Footer from "../components/navigation/Footer";
 import TopNavigation from "../components/navigation/TopNavigation";
 import { decodeToken } from "../utils/jwtUtils";
+import { SearchProvider } from "../utils/searchContext";
 
 const MainLayout = () => {
   const [userRole, setUserRole] = useState(null);
@@ -19,14 +20,16 @@ const MainLayout = () => {
   }, []);
 
   return (
-    <div className="d-flex flex-column min-vh-100">
-      <Header />
-      <TopNavigation userRole={userRole} />  
-      <main className="flex-grow-1">
-        <Outlet />
-      </main>
-      <Footer />
-    </div>
+    <SearchProvider>
+      <div className="d-flex flex-column min-vh-100">
+        <Header />
+        <TopNavigation userRole={userRole} />  
+        <main className="flex-grow-1">
+          <Outlet />
+        </main>
+        <Footer />
+      </div>
+    </SearchProvider>
   );
 };
 

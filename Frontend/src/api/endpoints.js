@@ -58,11 +58,14 @@ export const ENDPOINTS = {
     GET_ALL_PENITIPAN: "/penitipan",
     CREATE_PENITIPAN: "/penitipan",
     SHOW_PENITIPAN: (id) => `/penitipan/${id}`,
+    GET_PENITIPAN_BY_BARANG: (id) => `/penitipan/byIdBarang/${id}`,
     UPDATE_PENITIPAN: (id) => `/penitipan/${id}`,
     DELETE_PENITIPAN: (id) => `/penitipan/${id}`,
+    GET_ALL_PENITIPAN_BY_ID_PENITIP: (id) => `/penitipan/byIdPenitip/${id}`,
 
     // Barang
     GET_ALL_BARANG: "/barang",
+    GET_ALL_BARANG_GARANSI: "/barang/garansi/",
     CREATE_BARANG: "/barang",
     SHOW_BARANG: (id) => `/barang/${id}`,
     UPDATE_BARANG: (id) => `/barang/${id}`,
@@ -111,6 +114,7 @@ export const ENDPOINTS = {
     GET_ALL_KERANJANG: "/keranjang",
     CREATE_KERANJANG: "/keranjang",
     SHOW_KERANJANG: (id) => `/keranjang/${id}`,
+    SHOW_KERANJANG_BY_ID_PEMBELI: (id) => `/keranjang/byIdPembeli/${id}`,
     UPDATE_KERANJANG: (id) => `/keranjang/${id}`,
     DELETE_KERANJANG: (id) => `/keranjang/${id}`,
 

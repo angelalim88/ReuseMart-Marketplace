@@ -1,7 +1,7 @@
 import React from 'react';
 
 const OwnerPage = () => {
-  return <div>Owner Page (Kosong)</div>;
+  return <div>Penitip History (Kosong)</div>;
 };
 
 export default OwnerPage;

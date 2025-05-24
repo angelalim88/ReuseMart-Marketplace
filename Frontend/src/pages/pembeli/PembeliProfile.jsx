@@ -275,32 +275,49 @@ const HistoryTransaksi = ({ pembeliId }) => {
 
   const getStatusColor = (status) => {
     if (!status) return historyStyles.statusFailedColor;
-    
-    status = status.toLowerCase();
-    
-    if (status.includes('valid') || status.includes('selesai')) {
+
+    const lowerStatus = status.toLowerCase();
+
+    if (
+      lowerStatus === 'tidak mengirimkan bukti bayar' ||
+      lowerStatus === 'pembayaran tidak valid'
+    ) {
+      return historyStyles.statusFailedColor;
+    } else if (
+      lowerStatus === 'pembayaran valid' ||
+      lowerStatus === 'selesai'
+    ) {
       return historyStyles.statusSuccessColor;
-    } else if (status.includes('menunggu')) {
+    } else if (
+      lowerStatus === 'menunggu verifikasi pembayaran' ||
+      lowerStatus === 'menunggu pembayaran'
+    ) {
       return historyStyles.statusPendingColor;
     } else {
       return historyStyles.statusFailedColor;
     }
   };
 
-  const filteredTransactions = transactions.map((transaction) => ({
+  const filteredTransactions = transactions
+  .map((transaction) => ({
     ...transaction,
     barang: Array.isArray(transaction.barang) ? transaction.barang : [],
-  })).filter((transaction) => {
+  }))
+  .filter((transaction) => {
     const query = searchQuery.toLowerCase();
     return (
-      (transaction.id_pembelian && transaction.id_pembelian.toLowerCase().includes(query)) ||
-      (transaction.status_pembelian && transaction.status_pembelian.toLowerCase().includes(query)) ||
-      (transaction.barang && transaction.barang.some(
-        (item) =>
-          (item.nama && item.nama.toLowerCase().includes(query)) ||
-          (item.deskripsi && item.deskripsi.toLowerCase().includes(query)) ||
-          (item.penitipName && item.penitipName.toLowerCase().includes(query))
-      ))
+      // Filter berdasarkan id_pembelian dan status_pembelian di dalam objek pembelian
+      (transaction.pembelian?.id_pembelian &&
+        transaction.pembelian.id_pembelian.toLowerCase().includes(query)) ||
+      (transaction.pembelian?.status_pembelian &&
+        transaction.pembelian.status_pembelian.toLowerCase().includes(query)) ||
+      // Filter berdasarkan barang
+      (transaction.barang &&
+        transaction.barang.some(
+          (item) =>
+            (item.nama && item.nama.toLowerCase().includes(query)) ||
+            (item.deskripsi && item.deskripsi.toLowerCase().includes(query))
+        ))
     );
   });
 
@@ -369,7 +386,7 @@ const HistoryTransaksi = ({ pembeliId }) => {
                     </p>
                   </div>
 
-                  {expanded[transaction.id_pembelian] && transaction.barang && (
+                  {expanded[transaction.pembelian.id_pembelian] && transaction.barang && (
                     <div className="mt-3">
                       {transaction.barang.map((item, index) => (
                         <div key={index} style={historyStyles.productItem}>
@@ -417,9 +434,9 @@ const HistoryTransaksi = ({ pembeliId }) => {
                     <div>
                       <button
                         style={historyStyles.buttonPrimary}
-                        onClick={() => toggleExpand(transaction.id_pembelian)}
+                        onClick={() => toggleExpand(transaction.pembelian.id_pembelian)}
                       >
-                        {expanded[transaction.id_pembelian] ? (
+                        {expanded[transaction.pembelian.id_pembelian] ? (
                           <>
                             Tutup <FaChevronUp />
                           </>
@@ -508,7 +525,7 @@ const HistoryTransaksi = ({ pembeliId }) => {
                       <div style={historyStyles.deliveryStep}>
                         <div style={{ fontWeight: '600', color: colors.primary }}>Dikemas</div>
                         <div style={historyStyles.deliveryDate}>
-                          {selectedTransaction.tanggal_pelunasan ? formatDate(selectedTransaction.tanggal_pelunasan) : 'N/A'}
+                          {selectedTransaction.pembelian?.tanggal_pelunasan ? formatDate(selectedTransaction.pembelian.tanggal_pelunasan) : 'N/A'}
                         </div>
                       </div>
                       <div style={historyStyles.deliveryStep}>

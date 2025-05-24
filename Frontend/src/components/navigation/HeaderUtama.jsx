@@ -3,16 +3,19 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { FaSearch, FaShoppingCart, FaBell } from 'react-icons/fa';
 import { GetAkunById } from "../../clients/AkunService";
 import { decodeToken } from '../../utils/jwtUtils';
+import { useSearch } from '../../utils/searchContext';
+import { useNavigate } from 'react-router-dom';
 
 const HeaderUtama = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [userData, setUserData] = useState(null); // Menyimpan data akun pengguna
-  const [isHovered, setIsHovered] = useState(false); // State untuk hover pada tombol login
+  const navigate = useNavigate();
+  const { searchQuery, setSearchQuery } = useSearch();
+  const [userData, setUserData] = useState(null);
+  const [isHovered, setIsHovered] = useState(false);
 
   // Fungsi untuk mengambil data akun pengguna
   const fetchUserData = async () => {
     const token = localStorage.getItem("authToken");
-    if (!token) return; // Jika tidak ada token, tidak bisa ambil data
+    if (!token) return;
 
     const idAkun = decodeToken(token).id;
     if (!idAkun) {
@@ -22,12 +25,19 @@ const HeaderUtama = () => {
 
     try {
       const response = await GetAkunById(idAkun);
-      setUserData(response); // Menyimpan data akun pengguna ke state
+      setUserData(response);
       console.log('response data', response);
       
     } catch (error) {
       console.error('Failed to fetch user data:', error);
     }
+  };
+
+  // Handle search submission
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    // Navigate to homepage with search query
+    navigate('/');
   };
 
   // Memanggil fetchUserData saat komponen dimuat
@@ -136,25 +146,29 @@ const HeaderUtama = () => {
           </div>
 
           <div className="col">
-            <div style={searchContainerStyle}>
-              <FaSearch style={searchIconStyle} />
-              <input
-                type="text"
-                placeholder='Ketik "Kursi Estetik" 👀'
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={searchInputStyle}
-              />
-            </div>
+            <form onSubmit={handleSearchSubmit}>
+              <div style={searchContainerStyle}>
+                <FaSearch style={searchIconStyle} />
+                <input
+                  type="text"
+                  placeholder='Ketik "Kursi Estetik" 👀'
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={searchInputStyle}
+                />
+              </div>
+            </form>
           </div>
 
           <div className="col-auto d-flex align-items-center">
-            <div style={cartIconStyle}>
-              <FaShoppingCart />
-              <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '10px' }}>
-                10
-              </span>
-            </div>
+            <a href="/pembeli/keranjang">
+              <div style={cartIconStyle}>
+                <FaShoppingCart />
+                <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style={{ fontSize: '10px' }}>
+                  10
+                </span>
+              </div>
+            </a>
 
             <div style={notificationIconStyle}>
               <FaBell />
@@ -169,12 +183,12 @@ const HeaderUtama = () => {
               >
                 <div style={userIconStyle}>
                   <img
-                    src={userData.profilePictureUrl} // Gambar profil dari response API
+                    src={userData.profilePictureUrl}
                     alt="User"
                     style={{ width: '100%', height: '100%', borderRadius: '50%' }}
                   />
                 </div>
-                {userData.email} {/* Nama pengguna dari response API */}
+                {userData.email}
 
                 {/* Dropdown Menu */}
                 {isHovered && (
@@ -215,7 +229,7 @@ const HeaderUtama = () => {
                       }}
                       onClick={() => {
                         localStorage.removeItem('authToken');
-                        window.location.href = '/login'; // Logout and redirect to login
+                        window.location.href = '/login';
                       }}
                     >
                       Keluar
@@ -224,7 +238,6 @@ const HeaderUtama = () => {
                 )}
               </button>
             ) : (
-              // Tombol Masuk/Daftar untuk pengguna yang belum login
               <button
                 style={loginButtonStyle}
                 onClick={() => (window.location.href = '/login')}

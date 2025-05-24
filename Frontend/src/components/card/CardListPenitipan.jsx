@@ -1,13 +1,12 @@
 import React from 'react';
 import { Card, Badge, Button } from 'react-bootstrap';
-import { BsPencil, BsTrash, BsBox, BsPrinter, BsClock, BsCalendarCheck } from 'react-icons/bs';
+import { BsClock, BsEye, BsCalendarCheck, BsBoxArrowRight } from 'react-icons/bs';
 
-const CardListBarang = ({ 
-  barang, 
-  getPenitipName, 
-  onEdit, 
-  onDelete, 
-  onPrintNota,
+const CardListPenitipan = ({ 
+  penitipan, 
+  onModal, 
+  onPerpanjang,
+  onAmbil,
   getStatusBadge,
   remainingDays
 }) => {
@@ -31,7 +30,18 @@ const CardListBarang = ({
     return { text: `${days} hari lagi`, variant: 'success', icon: BsCalendarCheck };
   };
 
-  const imageUrl = getImageUrl(barang.gambar);
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Tanggal tidak tersedia';
+    const date = new Date(dateString);
+    return date.toLocaleString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'Asia/Jakarta'
+    }) ;
+  };
+
+  const imageUrl = penitipan?.Barang?.gambar ? getImageUrl(penitipan.Barang.gambar) : null;
   const remainingStatus = getRemainingDaysStatus(remainingDays);
   const StatusIcon = remainingStatus.icon;
 
@@ -40,9 +50,9 @@ const CardListBarang = ({
       <Card.Body className="p-3 d-flex flex-column">
         {/* Header Section */}
         <div className="card-header-section mb-3">
-          <span className="barang-id fw-medium">#{barang.id_barang}</span>
+          <span className="barang-id fw-medium">#{penitipan.id_penitipan}</span>
           <div className="status-badge">
-            {getStatusBadge(barang.status_qc)}
+            {getStatusBadge(penitipan.status_penitipan)}
           </div>
         </div>
         
@@ -51,7 +61,7 @@ const CardListBarang = ({
           {imageUrl ? (
             <img 
               src={imageUrl} 
-              alt={barang.nama} 
+              alt={penitipan.Barang.nama} 
               className="barang-image"
               onError={(e) => {e.target.src = 'https://via.placeholder.com/200?text=No+Image'}}
             />
@@ -64,33 +74,64 @@ const CardListBarang = ({
         </div>
         
         {/* Title Section */}
-        <h5 className="barang-name mb-3 text-dark">{barang.nama}</h5>
+        <h5 className="barang-name mb-3 text-dark">{penitipan.Barang.nama}</h5>
         
         {/* Category Badge */}
         <div className="mb-3">
           <Badge bg="secondary">
-            {barang.kategori_barang}
+            {penitipan.Barang.kategori_barang}
           </Badge>
         </div>
         
         {/* Info Section */}
         <div className="barang-details mb-3 flex-grow-1">
           <div className="info-row">
-            <span className="info-label">Penitip</span>
-            <span className="info-value">{getPenitipName(barang.id_penitip)}</span>
-          </div>
-          
-          <div className="info-row">
             <span className="info-label">Harga</span>
             <span className="info-value fw-bold text-success">
-              Rp {parseFloat(barang.harga).toLocaleString('id-ID')}
+              Rp {parseFloat(penitipan.Barang.harga).toLocaleString('id-ID')}
+            </span>
+          </div>
+
+          <div className="info-row">
+            <span className="info-label">Tanggal Awal Penitipan</span>
+            <span className="info-value fw-bold text-success">
+              {formatDate(penitipan.tanggal_awal_penitipan)}
+            </span>
+          </div>
+
+          <div className="info-row">
+            <span className="info-label">Tanggal Akhir Penitipan</span>
+            <span className="info-value fw-bold text-success">
+              {formatDate(penitipan.tanggal_akhir_penitipan)}
+            </span>
+          </div>
+
+          <div className="info-row">
+            <span className="info-label">Tanggal Batas Pengambilan</span>
+            <span className="info-value fw-bold text-success">
+              {formatDate(penitipan.tanggal_batas_pengambilan)}
+            </span>
+          </div>
+
+          <div className="info-row">
+            <span className="info-label">Perpanjangan</span>
+            <span className="info-value">
+              {penitipan?.perpanjangan !== undefined ? (
+                penitipan.perpanjangan ? (
+                  <Badge bg="success" className="ms-2">Ya</Badge>
+                ) : (
+                  <Badge bg="light" text="dark" className="ms-2">Tidak</Badge>
+                )
+              ) : (
+                <Badge bg="light" text="dark" className="ms-2">Data tidak tersedia</Badge>
+              )}
             </span>
           </div>
           
           <div className="info-row">
             <span className="info-label">Garansi</span>
             <span className="info-value">
-              {barang.garansi_berlaku ? (
+              {penitipan.Barang.garansi_berlaku ? (
                 <Badge bg="success" className="small-badge">Ada</Badge>
               ) : (
                 <Badge bg="light" text="dark" className="small-badge">Tidak ada</Badge>
@@ -114,35 +155,40 @@ const CardListBarang = ({
           </div>
         </div>
         
-        {/* Action Buttons */}
-        <div className="action-buttons d-flex gap-2 mt-auto">
-          <Button 
-            variant="outline-success" 
-            size="sm"
-            className="action-btn flex-fill"
-            onClick={() => onEdit(barang)}
-          >
-            <BsPencil className="me-1" size={14} />
-            Edit
-          </Button>
-          <Button 
-            variant="outline-primary" 
-            size="sm"
-            className="action-btn flex-fill"
-            onClick={() => onPrintNota(barang.id_barang)}
-          >
-            <BsPrinter className="me-1" size={14} />
-            Cetak
-          </Button>
-          <Button 
-            variant="outline-danger" 
-            size="sm"
-            className="action-btn flex-fill"
-            onClick={() => onDelete(barang.id_barang, barang.nama)}
-          >
-            <BsTrash className="me-1" size={14} />
-            Hapus
-          </Button>
+       <div className="action-buttons mt-auto">
+          <div className="button-row d-flex gap-2 mb-2">
+            <Button 
+              variant="outline-success" 
+              size="sm"
+              className="action-btn flex-fill"
+              onClick={() => onModal(penitipan.id_penitipan)}
+            >
+              <BsEye className="me-1" size={14} />
+              Detail Barang
+            </Button>
+            <Button 
+              variant="outline-danger" 
+              size="sm"
+              className="action-btn flex-fill"
+              onClick={() => onPerpanjang(penitipan.id_penitipan, penitipan.Barang.nama)}
+              disabled={penitipan.status_penitipan === 'Menunggu diambil' || penitipan.status_penitipan === "Menunggu didonasikan"}
+            >
+              <BsClock className="me-1" size={14} />
+              Perpanjang
+            </Button>
+          </div>
+          <div className="button-row d-flex gap-2">
+            <Button 
+              variant="outline-primary" 
+              size="sm"
+              className="action-btn flex-fill"
+              onClick={() => onAmbil(penitipan.id_penitipan, penitipan.Barang.nama)}
+              disabled={penitipan.status_penitipan === 'Menunggu diambil' || penitipan.status_penitipan === "Menunggu didonasikan"}
+            >
+              <BsBoxArrowRight className="me-1" size={14} />
+              Ambil Penitipan
+            </Button>
+          </div>
         </div>
       </Card.Body>
 
@@ -246,7 +292,7 @@ const CardListBarang = ({
         .info-row {
           display: flex;
           justify-content: space-between;
-          align-items: center;
+          align-items: flex-start;
           padding: 4px 0;
         }
         
@@ -254,12 +300,16 @@ const CardListBarang = ({
           font-size: 0.85rem;
           color: #6c757d;
           font-weight: 500;
+          flex: 0 0 40%;
         }
         
         .info-value {
           font-size: 0.85rem;
           color: #495057;
           font-weight: 600;
+          flex: 1; /* Ambil sisa ruang */
+          word-break: break-word;
+          text-align: right;
         }
         
         .small-badge {
@@ -401,4 +451,4 @@ const CardListBarang = ({
   );
 };
 
-export default CardListBarang;
+export default CardListPenitipan;

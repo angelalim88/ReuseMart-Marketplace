@@ -1,172 +1,215 @@
 import React from 'react';
 import { Modal, Button } from 'react-bootstrap';
-// import jsPDF from 'jspdf';
-// import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import Logo from '../../assets/images/logo.png';
 
 const NotaPenitipanPdf = ({ show, handleClose, penitipan }) => {
-//   // Format price as Rupiah
-//   const formatPrice = (angka) => {
-//     return new Intl.NumberFormat('id-ID', {
-//       style: 'currency',
-//       currency: 'IDR',
-//       minimumFractionDigits: 0,
-//     }).format(angka);
-//   };
+  const formatPrice = (angka) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+    }).format(angka);
+  };
 
-//   // Format date to Indonesian format (DD MMMM YYYY)
-//   const formatDate = (dateString) => {
-//     const options = { day: '2-digit', month: 'long', year: 'numeric' };
-//     return new Date(dateString).toLocaleDateString('id-ID', options);
-//   };
+  // Format date to Indonesian format (DD MMMM YYYY)
+  const formatDate = (dateString) => {
+    const options = { day: '2-digit', month: 'long', year: 'numeric' };
+    return new Date(dateString).toLocaleDateString('id-ID', options);
+  };
 
-//   // Generate PDF
-//   const generatePDF = () => {
-//     const doc = new jsPDF();
-//     if (typeof doc.autoTable !== 'function') {
-//       console.error('autoTable is not available on jsPDF instance');
-//       alert('Error: Unable to generate PDF. Please ensure jspdf-autotable is properly installed.');
-//       return;
-//     }
+  // Generate PDF
+  const generatePDF = () => {
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 10; // Reduced margin for compact layout
+      let yPosition = 15;
 
-//     const pageWidth = doc.internal.pageSize.getWidth();
-//     const margin = 15;
-//     const lineHeight = 10;
-//     let yPosition = 20;
+      // Add logo with dynamic scaling
+      const logoWidth = 35;
+      const logoHeight = logoWidth * 0.6;
+      const logoX = (pageWidth - logoWidth) / 2; // Center logo
+      try {
+        doc.addImage(Logo, 'PNG', logoX, yPosition, logoWidth, logoHeight);
+      } catch (error) {
+        console.warn('Logo failed to load, using placeholder text');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.text('Your Company Name', logoX, yPosition + 10);
+      }
+      yPosition += logoHeight + 10;
 
-//     // Helper function to add text with wrapping
-//     const addText = (text, x, y, maxWidth, fontSize = 12) => {
-//       doc.setFontSize(fontSize);
-//       doc.text(text, x, y, { maxWidth });
-//       return y + lineHeight;
-//     };
+      // Header styling
+      doc.setFillColor(2, 134, 67); // Primary green
+      doc.rect(0, 0, pageWidth, 4, 'F'); // Top border
+      doc.rect(0, pageHeight - 4, pageWidth, 4, 'F'); // Bottom border
 
-//     // Header
-//     doc.setFont('helvetica', 'bold');
-//     doc.setFontSize(16);
-//     doc.text('Nota Penitipan Barang', pageWidth / 2, yPosition, { align: 'center' });
-//     yPosition += 10;
+      // Title
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.setTextColor(2, 134, 67);
+      doc.text('NOTA PENITIPAN BARANG', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 8;
 
-//     doc.setFontSize(12);
-//     doc.setFont('helvetica', 'normal');
-//     doc.text('Gudang Penitipan', pageWidth / 2, yPosition, { align: 'center' });
-//     yPosition += 15;
+      // Motto
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(9);
+      doc.setTextColor(74, 74, 74); // Gray accent
+      doc.text('"Kualitas Terjamin, QC Terbaik"', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 10;
 
-//     // Penitipan Details
-//     doc.setFont('helvetica', 'bold');
-//     yPosition = addText('Detail Penitipan', margin, yPosition, pageWidth - 2 * margin, 14);
-//     doc.setFont('helvetica', 'normal');
+      // Decorative line
+      doc.setDrawColor(2, 134, 67);
+      doc.setLineWidth(0.3);
+      doc.line(margin, yPosition, pageWidth - margin, yPosition);
+      yPosition += 8;
 
-//     const penitipanDetails = [
-//       ['ID Penitipan', penitipan?.id_penitipan || '-'],
-//       ['Tanggal Awal', formatDate(penitipan?.tanggal_awal_penitipan) || '-'],
-//       ['Tanggal Akhir', formatDate(penitipan?.tanggal_akhir_penitipan) || '-'],
-//       ['Batas Pengambilan', formatDate(penitipan?.tanggal_batas_pengambilan) || '-'],
-//       ['Status', penitipan?.status_penitipan || '-'],
-//       ['Perpanjangan', penitipan?.perpanjangan ? 'Ya' : 'Tidak'],
-//     ];
+      // Compact Penitipan Details
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(2, 134, 67);
+      doc.text('Detail Penitipan', margin, yPosition);
+      yPosition += 5;
 
-//     doc.autoTable({
-//       startY: yPosition,
-//       head: [['Field', 'Value']],
-//       body: penitipanDetails,
-//       theme: 'striped',
-//       margin: { left: margin, right: margin },
-//       styles: { fontSize: 10, cellPadding: 3 },
-//       headStyles: { fillColor: [2, 134, 67] },
-//     });
-//     yPosition = doc.lastAutoTable.finalY + 15;
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Field', 'Value']],
+        body: [
+          ['ID Penitipan', penitipan?.id_penitipan || '-'],
+          ['Tanggal Awal', formatDate(penitipan?.tanggal_awal_penitipan) || '-'],
+          ['Tanggal Akhir', formatDate(penitipan?.tanggal_akhir_penitipan) || '-'],
+          ['Batas Pengambilan', formatDate(penitipan?.tanggal_batas_pengambilan) || '-'],
+          ['Status', penitipan?.status_penitipan || '-'],
+          ['Perpanjangan', penitipan?.perpanjangan ? 'Ya' : 'Tidak'],
+        ],
+        theme: 'grid',
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 8, cellPadding: 3, font: 'helvetica' },
+        headStyles: {
+          fillColor: [2, 134, 67],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 9,
+        },
+        alternateRowStyles: { fillColor: [245, 252, 248] },
+      });
+      yPosition = doc.lastAutoTable.finalY + 8;
 
-//     // Barang Details
-//     doc.setFont('helvetica', 'bold');
-//     yPosition = addText('Detail Barang', margin, yPosition, pageWidth - 2 * margin, 14);
-//     doc.setFont('helvetica', 'normal');
+      // Barang Details
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(2, 134, 67);
+      doc.text('Detail Barang', margin, yPosition);
+      yPosition += 5;
 
-//     const barangDetails = [
-//       ['ID Barang', penitipan?.Barang?.id_barang || '-'],
-//       ['Nama', penitipan?.Barang?.nama || '-'],
-//       ['Deskripsi', penitipan?.Barang?.deskripsi || '-'],
-//       ['Harga', formatPrice(penitipan?.Barang?.harga || 0)],
-//       ['Berat', `${penitipan?.Barang?.berat || '-'} kg`],
-//       ['Kategori', penitipan?.Barang?.kategori_barang || '-'],
-//       ['Status QC', penitipan?.Barang?.status_qc || '-'],
-//       ['Garansi Berlaku', penitipan?.Barang?.garansi_berlaku ? 'Ya' : 'Tidak'],
-//       ['Tanggal Garansi', formatDate(penitipan?.Barang?.tanggal_garansi) || '-'],
-//     ];
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Field', 'Value']],
+        body: [
+          ['ID Barang', penitipan?.Barang?.id_barang || '-'],
+          ['Nama', penitipan?.Barang?.nama || '-'],
+          ['Deskripsi', penitipan?.Barang?.deskripsi || '-'],
+          ['Harga', formatPrice(penitipan?.Barang?.harga || 0)],
+          ['Berat', `${penitipan?.Barang?.berat || '-'} kg`],
+          ['Kategori', penitipan?.Barang?.kategori_barang || '-'],
+          ['Status QC', penitipan?.Barang?.status_qc || '-'],
+          ['Garansi Berlaku', penitipan?.Barang?.garansi_berlaku ? 'Ya' : 'Tidak'],
+          ['Tanggal Garansi', formatDate(penitipan?.Barang?.tanggal_garansi) || '-'],
+        ],
+        theme: 'grid',
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 8, cellPadding: 3, font: 'helvetica' },
+        headStyles: {
+          fillColor: [2, 134, 67],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 9,
+        },
+        alternateRowStyles: { fillColor: [245, 252, 248] },
+      });
+      yPosition = doc.lastAutoTable.finalY + 8;
 
-//     doc.autoTable({
-//       startY: yPosition,
-//       head: [['Field', 'Value']],
-//       body: barangDetails,
-//       theme: 'striped',
-//       margin: { left: margin, right: margin },
-//       styles: { fontSize: 10, cellPadding: 3 },
-//       headStyles: { fillColor: [2, 134, 67] },
-//     });
-//     yPosition = doc.lastAutoTable.finalY + 15;
+      // Penitip Details
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(2, 134, 67);
+      doc.text('Detail Penitip', margin, yPosition);
+      yPosition += 5;
 
-//     // Penitip Details
-//     doc.setFont('helvetica', 'bold');
-//     yPosition = addText('Detail Penitip', margin, yPosition, pageWidth - 2 * margin, 14);
-//     doc.setFont('helvetica', 'normal');
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Field', 'Value']],
+        body: [
+          ['Nama', penitipan?.Barang?.Penitip?.nama_penitip || '-'],
+          ['Nomor KTP', penitipan?.Barang?.Penitip?.nomor_ktp || '-'],
+          ['Email', penitipan?.Barang?.Penitip?.Akun?.email || '-'],
+          ['Tanggal Registrasi', formatDate(penitipan?.Barang?.Penitip?.tanggal_registrasi) || '-'],
+        ],
+        theme: 'grid',
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 8, cellPadding: 3, font: 'helvetica' },
+        headStyles: {
+          fillColor: [2, 134, 67],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 9,
+        },
+        alternateRowStyles: { fillColor: [245, 252, 248] },
+      });
+      yPosition = doc.lastAutoTable.finalY + 10;
 
-//     const penitipDetails = [
-//       ['Nama', penitipan?.Barang?.Penitip?.nama_penitip || '-'],
-//       ['Nomor KTP', penitipan?.Barang?.Penitip?.nomor_ktp || '-'],
-//       ['Email', penitipan?.Barang?.Penitip?.Akun?.email || '-'],
-//       ['Tanggal Registrasi', formatDate(penitipan?.Barang?.Penitip?.tanggal_registrasi) || '-'],
-//     ];
+      // Footer
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(74, 74, 74);
+      doc.text(
+        `Dibuat pada: ${formatDate(new Date())}`,
+        margin,
+        pageHeight - 10
+      );
 
-//     doc.autoTable({
-//       startY: yPosition,
-//       head: [['Field', 'Value']],
-//       body: penitipDetails,
-//       theme: 'striped',
-//       margin: { left: margin, right: margin },
-//       styles: { fontSize: 10, cellPadding: 3 },
-//       headStyles: { fillColor: [2, 134, 67] },
-//     });
-//     yPosition = doc.lastAutoTable.finalY + 15;
+      // Save PDF
+      doc.save(`Nota_Penitipan_${penitipan?.id_penitipan || 'unknown'}.pdf`);
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      alert('Gagal menghasilkan PDF. Silakan coba lagi.');
+    }
+  };
 
-//     // Footer
-//     doc.setFontSize(10);
-//     doc.setFont('helvetica', 'italic');
-//     doc.text(
-//       `Dibuat pada: ${formatDate(new Date())}`,
-//       margin,
-//       doc.internal.pageSize.getHeight() - 10
-//     );
-
-//     // Save PDF
-//     doc.save(`Nota_Penitipan_${penitipan?.id_penitipan || 'unknown'}.pdf`);
-//   };
-
-//   return (
-//     <Modal show={show} onHide={handleClose} centered>
-//       <Modal.Header closeButton>
-//         <Modal.Title>Cetak Nota Penitipan</Modal.Title>
-//       </Modal.Header>
-//       <Modal.Body>
-//         <p>
-//           Apakah Anda ingin mencetak nota untuk penitipan dengan ID:{' '}
-//           <strong>{penitipan?.id_penitipan || '-'}</strong>?
-//         </p>
-//         <p>
-//           Nama Barang: <strong>{penitipan?.Barang?.nama || '-'}</strong>
-//         </p>
-//         <p>
-//           Penitip: <strong>{penitipan?.Barang?.Penitip?.nama_penitip || '-'}</strong>
-//         </p>
-//       </Modal.Body>
-//       <Modal.Footer>
-//         <Button variant="secondary" onClick={handleClose}>
-//           Batal
-//         </Button>
-//         <Button variant="primary" onClick={generatePDF}>
-//           Cetak Nota
-//         </Button>
-//       </Modal.Footer>
-//     </Modal>
-//   );
- };
+  return (
+    <Modal show={show} onHide={handleClose} centered className="shadow-lg">
+      <Modal.Header closeButton className="bg-success text-white border-0">
+        <Modal.Title className="fw-bold">Cetak Nota Penitipan</Modal.Title>
+      </Modal.Header>
+      <Modal.Body className="p-4">
+        <div className="text-center mb-3">
+          <h6 className="fw-bold">ID: {penitipan?.id_penitipan || '-'}</h6>
+        </div>
+        <div className="card p-3 border-success shadow-sm">
+          <p className="mb-2">
+            <strong>Nama Barang:</strong> {penitipan?.Barang?.nama || '-'}
+          </p>
+          <p className="mb-2">
+            <strong>Penitip:</strong> {penitipan?.Barang?.Penitip?.nama_penitip || '-'}
+          </p>
+          <p className="mb-0">
+            <strong>Status:</strong> {penitipan?.status_penitipan || '-'}
+          </p>
+        </div>
+      </Modal.Body>
+      <Modal.Footer className="border-0">
+        <Button variant="outline-secondary" onClick={handleClose} className="rounded-pill">
+          Batal
+        </Button>
+        <Button variant="success" onClick={generatePDF} className="rounded-pill">
+          <i className="bi bi-file-pdf me-2"></i>Cetak Nota
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
 
 export default NotaPenitipanPdf;

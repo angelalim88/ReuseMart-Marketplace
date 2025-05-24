@@ -19,3 +19,9 @@ export const UpdateStatusPenitipan = (id, newStatus) => {
 
 export const CreatePenitipan = (data) => 
     apiClient.post(ENDPOINTS.CREATE_PENITIPAN, data);
+
+export const GetPenitipanByIdBarang = (id) =>
+    apiClient.get(ENDPOINTS.GET_PENITIPAN_BY_BARANG(id));
+
+export const GetAllPenitipanByIdPenitip = (id) =>
+    apiClient.get(ENDPOINTS.GET_ALL_PENITIPAN_BY_ID_PENITIP(id));

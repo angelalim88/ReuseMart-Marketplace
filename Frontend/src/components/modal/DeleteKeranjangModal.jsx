@@ -1,9 +1,9 @@
 import ConfirmModal from "./ConfirmModal";
 
-const DeleteAlamatModal = ({ alamat, onDelete }) => {
+const DeleteKeranjangModal = ({ keranjang, onDelete }) => {
 
     const handleDelete = async () => {
-      const currentModalEl = document.getElementById("delete-alamat-modal");
+      const currentModalEl = document.getElementById("delete-keranjang-modal");
       const currentModal = bootstrap.Modal.getInstance(currentModalEl);
       currentModal.hide();
 
@@ -17,21 +17,21 @@ const DeleteAlamatModal = ({ alamat, onDelete }) => {
             return;
           }
           
-          await onDelete(alamat?.id_alamat);
+          await onDelete(keranjang?.id_keranjang);
       })
     };
 
     return <>
       <ConfirmModal />
-      <div className="modal fade" id="delete-alamat-modal" tabIndex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel">
+      <div className="modal fade" id="delete-keranjang-modal" tabIndex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="staticBackdropLabel">
         <div className="modal-dialog modal-dialog-centered">
           <div className="modal-content">
             <div className="modal-header">
-              <h1 className="modal-title fs-5" id="exampleModalLabel">Hapus Alamat</h1>
+              <h1 className="modal-title fs-5" id="exampleModalLabel">Hapus keranjang</h1>
               <button type="button" className="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div className="modal-body">
-                <p className="">Apakah Anda yakin ingin menghapus alamat <strong>{alamat?.nama_alamat}</strong> ({alamat?.alamat_lengkap}) ?</p>
+                <p className="">Apakah Anda yakin ingin menghapus produk <strong>{keranjang?.Barang?.nama}</strong> dari keranjang ?</p>
             </div>
             <div className="modal-footer">
               <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
@@ -43,4 +43,4 @@ const DeleteAlamatModal = ({ alamat, onDelete }) => {
     </>
 }
 
-export default DeleteAlamatModal;
+export default DeleteKeranjangModal;

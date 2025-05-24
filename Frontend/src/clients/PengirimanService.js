@@ -6,3 +6,6 @@ export const GetAllPengiriman = () =>
 
 export const GetPengirimanById = (id) =>
     apiClient.get(ENDPOINTS.SHOW_PENGIRIMAN(id));
+
+export const CreatePengiriman = (data) => 
+  apiClient.post(ENDPOINTS.CREATE_PENGIRIMAN, data);

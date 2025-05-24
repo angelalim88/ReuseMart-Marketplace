@@ -16,6 +16,7 @@ import RoleSidebar from "../../components/navigation/Sidebar";
 import EmployeeCard from "../../components/card/CardPegawai";
 import PaginationComponent from "../../components/pagination/Pagination";
 import ResetEmployeePassModal from '../../components/modal/ResetEmployeePassModal';
+import ConfirmationModalUniversal from "../../components/modal/ConfirmationModalUniversal";
 
 const ManagePegawaiPage = () => {
   const [pegawaiList, setPegawaiList] = useState([]);
@@ -45,6 +46,13 @@ const ManagePegawaiPage = () => {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
+  
+  // Confirmation modal states
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [confirmationAction, setConfirmationAction] = useState(null);
+  const [confirmationMessage, setConfirmationMessage] = useState('');
+  const [confirmationTitle, setConfirmationTitle] = useState('');
+  const [confirmationType, setConfirmationType] = useState('warning');
 
   const roles = [
     { id: 'Pegawai Gudang', name: 'Pegawai Gudang' },
@@ -196,67 +204,41 @@ const ManagePegawaiPage = () => {
     
     try {
       if (modalType === 'add') {
-        // For new employee creation
-        console.log('Creating new employee with data:', {
-          nama_pegawai: currentPegawai.nama_pegawai,
-          tanggal_lahir: currentPegawai.tanggal_lahir,
-          email: currentPegawai.akun.email,
-          role: currentPegawai.akun.role,
-          has_profile_picture: !!profilePicture
-        });
-        
-        const formData = new FormData();
-        formData.append('nama_pegawai', currentPegawai.nama_pegawai);
-        formData.append('tanggal_lahir', currentPegawai.tanggal_lahir);
-        formData.append('email', currentPegawai.akun.email);
-        formData.append('password', currentPegawai.akun.password || 'defaultPassword');
-        formData.append('role', currentPegawai.akun.role);
-        
-        if (profilePicture) {
-          formData.append('profile_picture', profilePicture);
+        if(currentPegawai.tanggal_lahir > Date.now()){
+          showNotification("Tanggal Lebih dari waktu saat ini!", 'danger');
+        } else {
+          console.log('Creating new employee with data:', {
+            nama_pegawai: currentPegawai.nama_pegawai,
+            tanggal_lahir: currentPegawai.tanggal_lahir,
+            email: currentPegawai.akun.email,
+            role: currentPegawai.akun.role,
+            has_profile_picture: !!profilePicture
+          });
+  
+          const formData = new FormData();
+          formData.append('nama_pegawai', currentPegawai.nama_pegawai);
+          formData.append('tanggal_lahir', currentPegawai.tanggal_lahir);
+          formData.append('email', currentPegawai.akun.email);
+          formData.append('password', currentPegawai.akun.password || 'defaultPassword');
+          formData.append('role', currentPegawai.akun.role);
+          
+          if (profilePicture) {
+            formData.append('profile_picture', profilePicture);
+          }
+          
+          const response = await CreatePegawai(formData);
+          console.log('Employee created successfully:', response.data);
+          showNotification('Pegawai berhasil ditambahkan!', 'success');
+          setShowModal(false);
+          fetchPegawai(); 
         }
-        
-        const response = await CreatePegawai(formData);
-        console.log('Employee created successfully:', response.data);
-        showNotification('Pegawai berhasil ditambahkan!', 'success');
       } else {
-        // For updating existing employee
-        console.log('Updating employee with ID:', currentPegawai.id_pegawai, {
-          nama_pegawai: currentPegawai.nama_pegawai,
-          tanggal_lahir: currentPegawai.tanggal_lahir,
-          email: currentPegawai.akun.email,
-          role: currentPegawai.akun.role,
-          reset_password: resetPassword,
-          has_new_profile_picture: !!profilePicture
-        });
-        
-        const formData = new FormData();
-        
-        // Add basic employee data
-        formData.append('nama_pegawai', currentPegawai.nama_pegawai);
-        formData.append('tanggal_lahir', currentPegawai.tanggal_lahir);
-        
-        // Add account info
-        formData.append('email', currentPegawai.akun.email);
-        formData.append('role', currentPegawai.akun.role);
-        
-        // Add password if reset is requested
-        if (resetPassword && newPassword) {
-          formData.append('password', newPassword);
-        }
-        
-        // Add profile picture if selected
-        if (profilePicture) {
-          formData.append('profile_picture', profilePicture);
-        }
-        
-        const response = await UpdatePegawai(currentPegawai.id_pegawai, formData);
-        console.log('Employee updated successfully:', response.data);
-        showNotification('Data pegawai berhasil diperbarui!', 'success');
+        setConfirmationTitle('Konfirmasi Update Pegawai');
+        setConfirmationMessage('Apakah Anda yakin ingin memperbarui data pegawai ini?');
+        setConfirmationAction(() => updatePegawai);
+        setConfirmationType('warning');
+        setShowConfirmationModal(true);
       }
-      
-      setShowModal(false);
-      fetchPegawai();
     } catch (error) {
       console.error('Error saving pegawai data:', error);
       console.log('Error details:', {
@@ -273,33 +255,79 @@ const ManagePegawaiPage = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this employee?')) {
-      try {
-        console.log(`Deleting employee with ID: ${id}`);
-        const response = await DeletePegawai(id);
-        console.log('Employee deleted successfully:', response.data);
-        showNotification('Pegawai berhasil dihapus!', 'success');
-        fetchPegawai();
-      } catch (error) {
-        console.error('Error deleting pegawai:', error);
-        console.log('Error details:', {
-          message: error.message,
-          status: error.response?.status,
-          data: error.response?.data,
-          employee_id: id
-        });
-        setError('Failed to delete employee. Please try again.');
-        showNotification('Gagal menghapus pegawai. Silakan coba lagi.', 'danger');
+  const updatePegawai = async () => {
+    try {
+      console.log('Updating employee with ID:', currentPegawai.id_pegawai, {
+        nama_pegawai: currentPegawai.nama_pegawai,
+        tanggal_lahir: currentPegawai.tanggal_lahir,
+        email: currentPegawai.akun.email,
+        role: currentPegawai.akun.role,
+        reset_password: resetPassword,
+        has_new_profile_picture: !!profilePicture
+      });
+      
+      const formData = new FormData();
+      
+      formData.append('nama_pegawai', currentPegawai.nama_pegawai);
+      formData.append('tanggal_lahir', currentPegawai.tanggal_lahir);
+      
+      formData.append('email', currentPegawai.akun.email);
+      formData.append('role', currentPegawai.akun.role);
+      
+      if (resetPassword && newPassword) {
+        formData.append('password', newPassword);
       }
+      
+      if (profilePicture) {
+        formData.append('profile_picture', profilePicture);
+      }
+      
+      const response = await UpdatePegawai(currentPegawai.id_pegawai, formData);
+      console.log('Employee updated successfully:', response.data);
+      showNotification('Data pegawai berhasil diperbarui!', 'success');
+      setShowModal(false);
+      fetchPegawai();
+    } catch (error) {
+      console.error('Error updating pegawai:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to update employee data.';
+      setError(errorMessage);
+      showNotification(errorMessage, 'danger');
     }
   };
-  
-  // ini buat logika pencarian, berdasarkan nama, id, sama email
+
+  const handleDelete = (id) => {
+    setCurrentPegawai(prev => ({ ...prev, id_pegawai: id }));
+    setConfirmationTitle('Konfirmasi Hapus Pegawai');
+    setConfirmationMessage('Apakah Anda yakin ingin menghapus pegawai ini? Tindakan ini tidak dapat dibatalkan.');
+    setConfirmationAction(() => deletePegawai);
+    setConfirmationType('danger');
+    setShowConfirmationModal(true);
+  };
+
+  const deletePegawai = async () => {
+    try {
+      console.log(`Deleting employee with ID: ${currentPegawai.id_pegawai}`);
+      const response = await DeletePegawai(currentPegawai.id_pegawai);
+      console.log('Employee deleted successfully:', response.data);
+      showNotification('Pegawai berhasil dihapus!', 'success');
+      fetchPegawai();
+    } catch (error) {
+      console.error('Error deleting pegawai:', error);
+      console.log('Error details:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        employee_id: currentPegawai.id_pegawai
+      });
+      setError('Failed to delete employee. Please try again.');
+      showNotification('Gagal menghapus pegawai. Silakan coba lagi.', 'danger');
+    }
+  };
+
   const filteredPegawai = pegawaiList.filter(pegawai => {
     const matchesSearch = pegawai.nama_pegawai?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           pegawai.id_pegawai?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          pegawai.email?.toLowerCase().includes(searchTerm.toLowerCase());
+                          pegawai.Akun.email?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const pegawaiRole = pegawai.Akun?.role || pegawai.akun?.role;
     const matchesRole = selectedRole === '' || pegawaiRole === selectedRole;
@@ -307,7 +335,6 @@ const ManagePegawaiPage = () => {
     return matchesSearch && matchesRole;
   });
 
-  // logika buat pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredPegawai.slice(indexOfFirstItem, indexOfLastItem);
@@ -327,7 +354,6 @@ const ManagePegawaiPage = () => {
 
   return (
     <Container fluid className="p-0 bg-white">
-      {/* Navigation atas */}
       <ToastNotification 
         show={showToast} 
         setShow={setShowToast} 
@@ -357,7 +383,6 @@ const ManagePegawaiPage = () => {
         </Row>
 
         <Row>
-          {/* panggil siderbar buat role */}
           <Col md={3}>
             <RoleSidebar 
               namaSidebar={'Role'}
@@ -367,7 +392,6 @@ const ManagePegawaiPage = () => {
             />
           </Col>
 
-          {/* card content utamanya */}
           <Col md={9}>
             <div className="mb-4">
               <div className="position-relative">
@@ -407,7 +431,6 @@ const ManagePegawaiPage = () => {
                   />
                 ))}
 
-                {/* Logika buat Pagination */}
                 {totalPages > 1 && (
                  <PaginationComponent 
                     currentPage={currentPage}
@@ -421,20 +444,18 @@ const ManagePegawaiPage = () => {
         </Row>
       </div>
 
-      {/* Add sama edit Modal */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered>
         <Modal.Header closeButton style={{ backgroundColor: '#028643', color: 'white' }}>
           <Modal.Title>{modalType === 'add' ? 'Tambah Pegawai Baru' : 'Edit Data Pegawai'}</Modal.Title>
         </Modal.Header>
         <Modal.Body className="p-4">
           <Form onSubmit={handleSubmit}>
-            {/* Profile Picture Upload Section */}
             <Form.Group className="mb-4 text-center">
               <div className="profile-pic-container">
                 <img 
                   src={imagePreview || (currentPegawai.akun?.profile_picture || defaultAvatar)} 
                   alt="Profile Preview" 
-                  className="profile-preview mb-3"
+                  className="profile-preview mb-3 center"
                 />
                 <Form.Label className="d-block profile-upload-label">Foto Profil</Form.Label>
                 <div className="d-flex justify-content-center">
@@ -580,6 +601,16 @@ const ManagePegawaiPage = () => {
           </Form>
         </Modal.Body>
       </Modal>
+      
+      <ConfirmationModalUniversal
+        show={showConfirmationModal}
+        onHide={() => setShowConfirmationModal(false)}
+        onConfirm={confirmationAction}
+        title={confirmationTitle}
+        message={confirmationMessage}
+        confirmButtonText={confirmationTitle.includes('Update') ? 'Update' : 'Hapus'}
+        type={confirmationType}
+      />
 
       <ResetEmployeePassModal pegawai={currentPegawai}/>
 
@@ -588,7 +619,6 @@ const ManagePegawaiPage = () => {
           max-width: 1200px;
         }
         
-        /* Profile Picture Styles */
         .profile-pic-container {
           margin-bottom: 15px;
         }
@@ -607,7 +637,6 @@ const ManagePegawaiPage = () => {
           margin-bottom: 10px;
         }
         
-        /* Navigation Tab Styles */
         .nav-tabs-custom {
           display: flex;
           border-bottom: 1px solid #E7E7E7;
@@ -627,7 +656,6 @@ const ManagePegawaiPage = () => {
           border-bottom: 2px solid #028643;
         }
         
-        /* Page Title and Button */
         .input-pegawai-btn {
           background-color: #028643;
           border-color: #028643;
@@ -642,7 +670,6 @@ const ManagePegawaiPage = () => {
           border-color: #026d36;
         }
         
-        /* Search Input */
         .position-relative {
           position: relative;
         }
@@ -664,11 +691,11 @@ const ManagePegawaiPage = () => {
         }
         
         .search-input:focus {
-          box-shadow: none;
-          border-color: #028643;
+          boxcopy
+            box-shadow: none;
+          border-color: #E7E7E7;
         }
         
-        /* Button Styles */
         .delete-btn {
           background-color: #FF1700;
           border-color: #FF1700;
@@ -698,13 +725,11 @@ const ManagePegawaiPage = () => {
           border-color: #026d36;
         }
         
-        /* Form Controls */
         .form-control-custom:focus {
           border-color: #028643;
           box-shadow: 0 0 0 0.25rem rgba(2, 134, 67, 0.25);
         }
         
-        /* Responsive Adjustments */
         @media (max-width: 768px) {
           .nav-tabs-custom .nav-link {
             padding: 10px;

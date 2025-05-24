@@ -5,18 +5,23 @@ import LoginLayout from "../layouts/LoginLayout";
 import ProtectedRoute from "../routes/ProtectedRoute";
 
 import HomePage from "../pages/HomePage";
+import ListProdukPage from "../pages/ListProdukPage";
+
+import BarangGaransiPage from "../pages/BarangGaransiPage";
+import DetailGaransiPage from "../pages/DetailGaransiBarang";
 import LoginPage from "../pages/LoginPage";
 import OwnerPage from "../pages/owner/OwnerPage";
 import AdminPage from "../pages/admin/AdminPage";
 import PegawaiGudangPage from "../pages/pegawai-gudang/PegawaiGudangPage";
 import PembeliPage from "../pages/pembeli/PembeliPage";
-import PenitipPage from "../pages/penitip/PenitipPage";
+import DaftarBarang from "../pages/penitip/DaftarBarang";
 import CsPage from "../pages/cs/CsPage";
 import OrganisasiPage from "../pages/organisasi/OrganisasiPage";
 import ManagePegawaiPage from "../pages/admin/ManagePegawaiPage";
 import ManageOrganisasiPage from "../pages/admin/ManageOrganisasiPage";
 import ManageMerchandisePage from "../pages/admin/ManageMerchandisePage";
 import PenitipProfile from "../pages/penitip/PenitipProfile";
+import LaporanPenitip from "../pages/penitip/LaporanPenitip";
 import PembeliProfile from "../pages/pembeli/PembeliProfile";
 import PenitipHistory from "../pages/penitip/PenitipHistory";
 import ManageAlamat from "../pages/pembeli/ManageAlamat";
@@ -50,6 +55,7 @@ import ForgotPassword from "../pages/ForgotPassword";
 
 import { Navigate } from "react-router-dom"; 
 import { decodeToken } from "../utils/jwtUtils";
+import Keranjang from "../pages/pembeli/Keranjang";
 
 const ProfileRedirect = () => {
   const token = localStorage.getItem("authToken");
@@ -68,6 +74,9 @@ const ProfileRedirect = () => {
 
 const mainRoutes = [
   { path: "/", element: <HomePage /> },
+  { path: "/produk", element: <ListProdukPage /> },
+  { path: "/garansi", element: <BarangGaransiPage /> },
+  { path: "/garansi/:id", element: <DetailGaransiPage /> },
 
   // Halaman Reset Password 
   { path: "/forgot-password", element: <ForgotPassword /> },
@@ -138,18 +147,22 @@ const mainRoutes = [
   },
   { path: "/pembeli/profile", element: <PembeliProfile /> },
   { path: "/pembeli/alamat", element: <ManageAlamat /> },
+  { path: "/pembeli/keranjang", element: <Keranjang /> },
 
   // Protected Route for Penitip
   {
     path: "/penitip",
     element: (
       <ProtectedRoute allowedRoles={["Penitip"]}>
-        <PenitipPage />
+        <DaftarBarang />
       </ProtectedRoute>
     ),
   },
   { path: "/penitip/profile", element: <PenitipProfile /> },
+  { path: "/penitip/barang", element: <DaftarBarang /> },
   { path: "/penitip/history", element: <PenitipHistory /> },
+
+  { path: "/penitip/laporan", element: <LaporanPenitip /> },
 
   // Protected Route for Customer Service
   {

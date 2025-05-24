@@ -13,25 +13,34 @@ import {
   BsExclamationTriangle, 
 } from 'react-icons/bs';
 import { GetAllBarang, CreateBarang, UpdateBarang, DeleteBarang } from '../../clients/BarangService';
-import { CreatePenitipan } from '../../clients/PenitipanService';
+import { CreatePenitipan, GetPenitipanByIdBarang, GetAllPenitipan } from '../../clients/PenitipanService';
 import { GetAllPenitip } from '../../clients/PenitipService';
 import { GetAllPegawai, GetPegawaiByAkunId } from '../../clients/PegawaiService';
 import { decodeToken } from '../../utils/jwtUtils';
 import RoleSidebar from '../../components/navigation/Sidebar';
-import ToastNotification from "../../components/toast/ToastNotification";
+import ToastNotification from '../../components/toast/ToastNotification';
 import PaginationComponent from '../../components/pagination/Pagination';
 import AddEditBarangModal from '../../components/modal/AddEditBarangModal';
 import BarangCard from '../../components/card/CardListBarang';
-import { data } from 'react-router-dom';
+import ConfirmationModalUniversal from '../../components/modal/ConfirmationModalUniversal';
+import NotaPenitipanPdf from '../../components/pdf/NotaPenitipanPdf';
 
 const ManageBarang = () => {
   const [barangList, setBarangList] = useState([]);
   const [filteredBarang, setFilteredBarang] = useState([]);
   const [penitipList, setPenitipList] = useState([]);
   const [pegawaiList, setPegawaiList] = useState([]);
+  const [penitipanList, setPenitipanList] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showNotaModal, setShowNotaModal] = useState(false);
+  const [selectedPenitipan, setSelectedPenitipan] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [confirmType, setConfirmType] = useState('warning');
+  const [confirmMessage, setConfirmMessage] = useState('');
   const [selectedImages, setSelectedImages] = useState([]);
   const [imagePreview, setImagePreview] = useState([]);
   const [selectedView, setSelectedView] = useState('all');
@@ -45,7 +54,7 @@ const ManageBarang = () => {
   const [akun, setAkun] = useState(null);
   const [pegawai, setPegawai] = useState(null);
   const [loggedInPegawaiId, setLoggedInPegawaiId] = useState('');
- 
+
   const [formData, setFormData] = useState({
     id_penitip: '',
     id_hunter: '',
@@ -61,13 +70,16 @@ const ManageBarang = () => {
   });
 
   const kategoriOptions = [
-    'Elektronik & Gadget', 'Pakaian & Aksesori', 'Perabotan Rumah Tangga', 'Buku, Alat Tulis, & Peralatan Sekolah', 'Hobi, Mainan, & Koleksi', 'Perlengkapan Bayi & Anak', 'Otomotif & Aksesori', 'Perlengkapan Taman & Outdoor', 'Peralatan Kantor & Industri', 'Kosmetik & Perawatan diri' 
+    'Elektronik & Gadget', 'Pakaian & Aksesori', 'Perabotan Rumah Tangga', 
+    'Buku, Alat Tulis, & Peralatan Sekolah', 'Hobi, Mainan, & Koleksi', 
+    'Perlengkapan Bayi & Anak', 'Otomotif & Aksesori', 'Perlengkapan Taman & Outdoor', 
+    'Peralatan Kantor & Industri', 'Kosmetik & Perawatan diri' 
   ];
   const statusQCOptions = ['Lulus', 'Tidak lulus'];
   const barangViews = [
     { id: 'all', name: 'Semua Barang' },
-    { id: 'Lulus', name: 'Lulus QC' },
-    { id: 'Tidak lulus', name: 'Tidak Lulus QC' }
+    { id: 'Lulus', name: 'Lulus Quality Check' },
+    { id: 'Tidak lulus', name: 'Tidak Lulus Quality Check' }
   ];
 
   const showNotification = (message, type = 'success') => {
@@ -75,6 +87,19 @@ const ManageBarang = () => {
     setToastType(type);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 5000);
+  };
+
+  // Function to calculate remaining days
+  const calculateRemainingDays = (barangId) => {
+    const penitipan = penitipanList.find(p => p.id_barang === barangId);
+    if (!penitipan || !penitipan.tanggal_akhir_penitipan) return null;
+    
+    const today = new Date();
+    const endDate = new Date(penitipan.tanggal_akhir_penitipan);
+    const diffTime = endDate - today;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays;
   };
 
   useEffect(() => {
@@ -109,12 +134,12 @@ const ManageBarang = () => {
     };
 
     fetchUserData();
-    fetchData(); // Fetch initial data
+    fetchData();
   }, []);
 
   useEffect(() => {
     filterBarangData();
-  }, [selectedView, barangList, searchTerm]);
+  }, [selectedView, barangList, searchTerm, selectedCategory]);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -125,15 +150,17 @@ const ManageBarang = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [barangResponse, penitipResponse, pegawaiResponse] = await Promise.all([
+      const [barangResponse, penitipResponse, pegawaiResponse, penitipanResponse] = await Promise.all([
         GetAllBarang(),
         GetAllPenitip(),
-        GetAllPegawai()
+        GetAllPegawai(),
+        GetAllPenitipan()
       ]);
 
       setBarangList(barangResponse.data);
       setPenitipList(penitipResponse.data);
       setPegawaiList(pegawaiResponse.data);
+      setPenitipanList(penitipanResponse.data);
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Gagal memuat data. Silakan coba lagi nanti.');
@@ -150,6 +177,10 @@ const ManageBarang = () => {
       filtered = filtered.filter(barang => barang.status_qc === 'Lulus');
     } else if (selectedView === 'Tidak lulus') {
       filtered = filtered.filter(barang => barang.status_qc === 'Tidak lulus');
+    }
+    
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(barang => barang.kategori_barang === selectedCategory);
     }
     
     if (searchTerm) {
@@ -213,32 +244,37 @@ const ManageBarang = () => {
   };
 
   const openModal = (barang = null) => {
-    console.log('Id Pegawai: ', loggedInPegawaiId);
     if (barang) {
-      setFormData({
-        id_penitip: barang.id_penitip,
-        id_hunter: barang.id_hunter || null,
-        id_pegawai_gudang: loggedInPegawaiId,
-        nama: barang.nama,
-        deskripsi: barang.deskripsi,
-        harga: barang.harga,
-        garansi_berlaku: barang.garansi_berlaku,
-        tanggal_garansi: barang.tanggal_garansi ? barang.tanggal_garansi.split('T')[0] : null,
-        berat: barang.berat,
-        status_qc: barang.status_qc,
-        kategori_barang: barang.kategori_barang
+      setConfirmAction(() => () => {
+        setFormData({
+          id_penitip: barang.id_penitip,
+          id_hunter: barang.id_hunter || null,
+          id_pegawai_gudang: loggedInPegawaiId,
+          nama: barang.nama,
+          deskripsi: barang.deskripsi,
+          harga: barang.harga,
+          garansi_berlaku: barang.garansi_berlaku,
+          tanggal_garansi: barang.tanggal_garansi ? barang.tanggal_garansi.split('T')[0] : null,
+          berat: barang.berat,
+          status_qc: barang.status_qc,
+          kategori_barang: barang.kategori_barang
+        });
+        setCurrentBarang(barang);
+        if (barang.gambar) {
+          const imageUrls = barang.gambar.split(',').map(img => img.trim());
+          setImagePreview(imageUrls);
+        } else {
+          setImagePreview([]);
+        }
+        setShowModal(true);
       });
-      setCurrentBarang(barang);
-      if (barang.gambar) {
-        const imageUrls = barang.gambar.split(',').map(img => img.trim());
-        setImagePreview(imageUrls);
-      } else {
-        setImagePreview([]);
-      }
+      setConfirmType('warning');
+      setConfirmMessage(`Apakah Anda yakin ingin mengedit barang "${barang.nama}"?`);
+      setShowConfirmModal(true);
     } else {
       resetForm();
+      setShowModal(true);
     }
-    setShowModal(true);
   };
 
   const createPenitipanForBarang = async (barangId) => {
@@ -272,7 +308,6 @@ const ManageBarang = () => {
     e.preventDefault();
     setError('');
 
-    // Validasi form
     if (!formData.id_penitip || !formData.nama || 
         !formData.deskripsi || !formData.harga || !formData.berat || !formData.kategori_barang) {
       setError('Harap isi semua field yang diperlukan!');
@@ -289,10 +324,8 @@ const ManageBarang = () => {
     try {
       const formDataObj = new FormData();
       
-      // Fix: Better handling of form data, especially for id_hunter
       Object.keys(formData).forEach(key => {
         if (key === 'id_hunter') {
-          // Don't append anything if it's empty or "null"
           if (formData[key] !== '' && formData[key] !== 'null' && formData[key] !== null) {
             formDataObj.append(key, formData[key]);
           }
@@ -301,14 +334,12 @@ const ManageBarang = () => {
         }
       });
       
-      // Add images to form data
       if (selectedImages.length > 0) {
         selectedImages.forEach(image => {
           formDataObj.append('gambar', image);
         });
       }
       
-      // Debug the form data
       console.log('Form data keys:', [...formDataObj.keys()]);
       console.log('Form data entries:', [...formDataObj.entries()].map(entry => `${entry[0]}: ${entry[1]}`));
       
@@ -338,8 +369,8 @@ const ManageBarang = () => {
     }
   };
 
-  const handleDeleteBarang = async (id) => {
-    if (window.confirm("Apakah Anda yakin ingin menghapus barang ini?")) {
+  const handleDeleteBarang = async (id, nama) => {
+    setConfirmAction(() => async () => {
       try {
         await DeleteBarang(id);
         showNotification('Barang berhasil dihapus.', 'success');
@@ -348,6 +379,24 @@ const ManageBarang = () => {
         console.error('Error deleting barang:', error);
         showNotification('Gagal menghapus barang. Barang mungkin digunakan di data lain.', 'danger');
       }
+    });
+    setConfirmType('danger');
+    setConfirmMessage(`Apakah Anda yakin ingin menghapus barang "${nama}"?`);
+    setShowConfirmModal(true);
+  };
+
+  const handlePrintNota = async (barangId) => {
+    try {
+      const response = await GetPenitipanByIdBarang(barangId);
+      if (response.data) {
+        setSelectedPenitipan(response.data);
+        setShowNotaModal(true);
+      } else {
+        showNotification('Data penitipan tidak ditemukan untuk barang ini.', 'warning');
+      }
+    } catch (error) {
+      console.error('Error fetching penitipan data:', error);
+      showNotification('Gagal memuat data penitipan. Silakan coba lagi.', 'danger');
     }
   };
 
@@ -364,7 +413,6 @@ const ManageBarang = () => {
 
   const getPenitipName = (id) => {
     const penitip = penitipList.find(p => p.id_penitip === id);
-    console.log(penitip);
     return penitip ? penitip.nama_penitip : '-';
   };
 
@@ -402,7 +450,9 @@ const ManageBarang = () => {
           getPenitipName={getPenitipName}
           onEdit={openModal}
           onDelete={handleDeleteBarang}
+          onPrintNota={handlePrintNota}
           getStatusBadge={getStatusBadge}
+          remainingDays={calculateRemainingDays(barang.id_barang)}
         />
       </Col>
     );
@@ -415,6 +465,23 @@ const ManageBarang = () => {
         setShow={setShowToast} 
         message={toastMessage} 
         type={toastType} 
+      />
+
+      <ConfirmationModalUniversal
+        show={showConfirmModal}
+        onHide={() => setShowConfirmModal(false)}
+        onConfirm={confirmAction}
+        title="Konfirmasi Tindakan"
+        message={confirmMessage}
+        confirmButtonText="Ya"
+        cancelButtonText="Batal"
+        type={confirmType}
+      />
+
+      <NotaPenitipanPdf
+        show={showNotaModal}
+        handleClose={() => setShowNotaModal(false)}
+        penitipan={selectedPenitipan}
       />
 
       <div className="max-width-container mx-auto pt-4 px-3">
@@ -442,7 +509,7 @@ const ManageBarang = () => {
         <Row>
           <Col md={3}>
             <RoleSidebar 
-              namaSidebar={'Kategori Barang'}
+              namaSidebar={'Status QC Barang'}
               roles={barangViews} 
               selectedRole={selectedView} 
               handleRoleChange={setSelectedView} 
@@ -450,18 +517,32 @@ const ManageBarang = () => {
           </Col>
 
           <Col md={9}>
-            <div className="mb-4">
-              <div className="position-relative">
-                <BsSearch className="search-icon" />
-                <Form.Control
-                  type="search"
-                  placeholder="Cari id, nama barang..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="search-input"
-                />
-              </div>
-            </div>
+            <Row className="mb-4">
+              <Col md={6}>
+                <div className="position-relative">
+                  <BsSearch className="search-icon" />
+                  <Form.Control
+                    type="search"
+                    placeholder="Cari id, nama barang..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="search-input"
+                  />
+                </div>
+              </Col>
+              <Col md={6}>
+                <Form.Select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="category-select"
+                >
+                  <option value="all">Semua Kategori</option>
+                  {kategoriOptions.map((kategori, index) => (
+                    <option key={index} value={kategori}>{kategori}</option>
+                  ))}
+                </Form.Select>
+              </Col>
+            </Row>
 
             {loading ? (
               <div className="text-center py-5">
@@ -515,7 +596,6 @@ const ManageBarang = () => {
           max-width: 1200px;
         }
         
-        /* Button Styles */
         .tambah-barang-btn {
           background-color: #028643;
           border-color: #028643;
@@ -530,7 +610,6 @@ const ManageBarang = () => {
           border-color: #026d36;
         }
         
-        /* Search Input */
         .position-relative {
           position: relative;
         }
@@ -556,7 +635,18 @@ const ManageBarang = () => {
           border-color: #028643;
         }
         
-        /* Card Styles */
+        .category-select {
+          height: 45px;
+          border-radius: 25px;
+          border: 1px solid #E7E7E7;
+          padding: 10px 15px;
+        }
+        
+        .category-select:focus {
+          box-shadow: none;
+          border-color: #028643;
+        }
+        
         .barang-card {
           border-radius: 8px;
           border-color: #E7E7E7;
@@ -616,7 +706,7 @@ const ManageBarang = () => {
           background-color: #f8f9fa;
         }
         
-.kategori-badge {
+        .kategori-badge {
           font-size: 0.75rem;
           background-color: #f0f0f0;
           color: #333;
@@ -637,7 +727,7 @@ const ManageBarang = () => {
           margin-top: 10px;
         }
         
-        .edit-btn, .delete-btn {
+        .edit-btn, .delete-btn, .print-btn {
           font-size: 0.8rem;
           padding: 4px 8px;
         }
@@ -662,7 +752,16 @@ const ManageBarang = () => {
           color: white;
         }
         
-        /* Form Styles */
+        .print-btn {
+          border-color: #007bff;
+          color: #007bff;
+        }
+        
+        .print-btn:hover {
+          background-color: #007bff;
+          color: white;
+        }
+        
         .form-control-custom {
           border-radius: 6px;
           border-color: #E7E7E7;
@@ -674,13 +773,11 @@ const ManageBarang = () => {
           border-color: #028643;
         }
         
-        /* Modal Styles */
         .modal-content {
           border-radius: 8px;
           border: none;
         }
         
-        /* Pagination Style */
         .pagination .page-item.active .page-link {
           background-color: #028643;
           border-color: #028643;
@@ -694,7 +791,6 @@ const ManageBarang = () => {
           color: #026d36;
         }
         
-        /* Responsive adjustments */
         @media (max-width: 768px) {
           .image-container {
             height: 140px;
