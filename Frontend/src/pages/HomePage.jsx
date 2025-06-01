@@ -107,7 +107,7 @@ const HomePage = () => {
   // styling dipisah tapi masih internal css
   const styles = {
     container: {
-      backgroundColor: '#F8F9FA',
+      backgroundColor: '#FFFFFF',
       minHeight: '100vh',
     },
     carouselContainer: {

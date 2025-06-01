@@ -3,9 +3,15 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { apiPembeli } from "../../clients/PembeliService";
 import { apiSubPembelian } from "../../clients/SubPembelianService";
 import { decodeToken } from '../../utils/jwtUtils';
-import { FaEdit, FaSearch, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaEdit, FaSearch, FaChevronDown, FaChevronUp, FaHistory, FaArrowRight } from 'react-icons/fa';
 import { apiAlamatPembeli } from "../../clients/AlamatPembeliServices";
 import { GetPenitipById } from "../../clients/PenitipService";
+import dayjs from "dayjs";
+import KirimBuktiBayarModal from "../../components/modal/KirimBuktiBayarModal";
+import { generateNotaPenjualan } from "../../components/pdf/CetakNotaPenjualan";
+import { apiPembelian } from "../../clients/PembelianService";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 // Shared color palette
 export const colors = {
@@ -68,6 +74,35 @@ export const sharedStyles = {
 // Additional styles for HistoryTransaksi
 const historyStyles = {
   ...sharedStyles,
+  historyHeaderContainer: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '25px',
+    flexWrap: 'wrap',
+    gap: '15px',
+  },
+  seeAllButton: {
+    padding: '12px 24px',
+    backgroundColor: colors.secondary,
+    color: colors.white,
+    border: 'none',
+    borderRadius: '50px',
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '10px',
+    fontWeight: '600',
+    fontSize: '0.95rem',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 2px 8px rgba(252, 138, 6, 0.3)',
+    textDecoration: 'none',
+    '&:hover': {
+      backgroundColor: '#e67a05',
+      transform: 'translateY(-2px)',
+      boxShadow: '0 4px 12px rgba(252, 138, 6, 0.4)',
+    }
+  },
   cardImage: {
     width: '100px',
     height: '100px',
@@ -167,6 +202,7 @@ const historyStyles = {
 };
 
 const HistoryTransaksi = ({ pembeliId }) => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [transactions, setTransactions] = useState([]);
   const [expanded, setExpanded] = useState({});
@@ -174,6 +210,85 @@ const HistoryTransaksi = ({ pembeliId }) => {
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [selectedPembelian, setSelectedPembelian] = useState(null);
+  const [countdowns, setCountdowns] = useState({});
+  const [expiredIds, setExpiredIds] = useState(new Set());
+  const [anyExpired, setAnyExpired] = useState(false);
+
+  const formatTime = (dateString) => {
+      const date = new Date(dateString);
+      return date.toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+  };
+
+  const extractIdNumber = (id) => {
+      const match = id.match(/\d+/);
+      return match ? parseInt(match[0]) : 0;
+  };
+
+  const generateNotaNumber = (transaction) => {
+    const date = new Date(transaction.pembelian?.tanggal_pembelian);
+    const year = String(date.getFullYear()).slice(-2);
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const idPembelian = extractIdNumber(transaction.pembelian?.id_pembelian);
+
+    return `${year}.${month}.${idPembelian}`;
+  };
+
+  const calculateRemainingTime = (deadline) => {
+    const now = new Date();
+    const end = new Date(deadline);
+    const diff = end - now;
+
+    if (diff <= 0) return "00:00:00";
+
+    const hours = String(Math.floor(diff / (1000 * 60 * 60))).padStart(2, '0');
+    const minutes = String(Math.floor((diff / (1000 * 60)) % 60)).padStart(2, '0');
+    const seconds = String(Math.floor((diff / 1000) % 60)).padStart(2, '0');
+
+    return `${hours}:${minutes}:${seconds}`;
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCountdowns((prevCountdowns) => {
+        if (anyExpired) {
+          fetchTransactions();
+        }
+
+        const updatedCountdowns = {};
+        setAnyExpired(false);
+
+        transactions.forEach((transaction) => {
+          const id = transaction.pembelian?.id_pembelian;
+          const pembelianDate = new Date(transaction.pembelian?.tanggal_pembelian);
+          const deadline = isNaN(pembelianDate)
+            ? null
+            : new Date(pembelianDate.getTime() + 15 * 60 * 1000);
+          
+          if (deadline) {
+            const now = new Date();
+
+            if (deadline > now) {
+              updatedCountdowns[id] = calculateRemainingTime(deadline);
+            } else {
+              if (!expiredIds.has(id)) {
+                setExpiredIds((prev) => new Set(prev).add(id));
+                setAnyExpired(true);
+              }
+            }
+          }
+        });
+
+        return updatedCountdowns;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [transactions, expiredIds]);
 
   // Fetch pembeli name
   const getPembeliName = async (idPembeli) => {
@@ -212,52 +327,56 @@ const HistoryTransaksi = ({ pembeliId }) => {
     }
   };
 
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      try {
-        setLoading(true);
-        
-        if (!pembeliId) {
-          throw new Error('Pembeli ID not found');
-        }
+  const handleNavigateToFullHistory = () => {
+    navigate('/pembeli/history');
+  };
 
-        const subPembelianData = await apiSubPembelian.getSubPembelianByPembeliId(pembeliId);
-        console.log('SubPembelian Data for user:', subPembelianData);
-
-        if (!Array.isArray(subPembelianData)) {
-          throw new Error('Invalid response data');
-        }
-
-        const transformedData = await Promise.all(
-          subPembelianData.map(async (transaction) => {
-            console.log('transaction ini', transaction);
-            const pembeliName = await getPembeliName(transaction.pembelian.id_pembeli);
-            const alamatDetails = await getAlamatDetails(transaction.pembelian.id_alamat);
-            const barangWithPenitip = await Promise.all(
-              (transaction.barang || []).map(async (item) => ({
-                ...item,
-                penitipName: await getPenitipName(item.id_penitip),
-              }))
-            );
-            return {
-              ...transaction,
-              nama_pembeli: pembeliName,
-              alamat_pembeli: alamatDetails,
-              barang: barangWithPenitip,
-            };
-          })
-        );
-        
-        console.log('Transformed Data:', transformedData);
-        setTransactions(transformedData);
-      } catch (error) {
-        console.error('Error fetching transaction data:', error);
-        setError('Failed to load your transactions');
-      } finally {
-        setLoading(false);
+  const fetchTransactions = async () => {
+    try {
+      setLoading(true);
+      
+      if (!pembeliId) {
+        throw new Error('Pembeli ID not found');
       }
-    };
 
+      const subPembelianData = await apiSubPembelian.getSubPembelianByPembeliId(pembeliId);
+      console.log('SubPembelian Data for user:', subPembelianData);
+
+      if (!Array.isArray(subPembelianData)) {
+        throw new Error('Invalid response data');
+      }
+
+      const transformedData = await Promise.all(
+        subPembelianData.map(async (transaction) => {
+          console.log('transaction ini', transaction);
+          const pembeliName = await getPembeliName(transaction.pembelian.id_pembeli);
+          const alamatDetails = await getAlamatDetails(transaction.pembelian.id_alamat);
+          const barangWithPenitip = await Promise.all(
+            (transaction.barang || []).map(async (item) => ({
+              ...item,
+              penitipName: await getPenitipName(item.id_penitip),
+            }))
+          );
+          return {
+            ...transaction,
+            nama_pembeli: pembeliName,
+            alamat_pembeli: alamatDetails,
+            barang: barangWithPenitip,
+          };
+        })
+      );
+      
+      console.log('Transformed Data:', transformedData);
+      setTransactions(transformedData);
+    } catch (error) {
+      console.error('Error fetching transaction data:', error);
+      setError('Failed to load your transactions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (pembeliId) {
       fetchTransactions();
     }
@@ -321,9 +440,42 @@ const HistoryTransaksi = ({ pembeliId }) => {
     );
   });
 
+  const handlePayment = async (id, data) => {
+    try {
+      const response = await apiPembelian.updatePembelian(id, data); 
+      if(response) {
+        toast.success("Berhasil mengirim bukti bayar!");
+        await fetchTransactions();
+      }
+    } catch (error) {
+      toast.error("Gagal mengirim bukti bayar!");
+      console.error("Gagal mengirim bukti bayar: ", error);
+    }
+  }
+
   return (
     <div>
-      <h2 style={historyStyles.headingStyle}>Riwayat Transaksi</h2>
+      <div style={historyStyles.historyHeaderContainer}>
+        <h2 style={historyStyles.headingStyle}>Riwayat Transaksi</h2>
+        <button
+          style={historyStyles.seeAllButton}
+          onClick={handleNavigateToFullHistory}
+          onMouseEnter={(e) => {
+            e.target.style.backgroundColor = '#e67a05';
+            e.target.style.transform = 'translateY(-2px)';
+            e.target.style.boxShadow = '0 4px 12px rgba(252, 138, 6, 0.4)';
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.backgroundColor = colors.secondary;
+            e.target.style.transform = 'translateY(0)';
+            e.target.style.boxShadow = '0 2px 8px rgba(252, 138, 6, 0.3)';
+          }}
+        >
+          <FaHistory />
+          Lihat Semua Riwayat
+          <FaArrowRight />
+        </button>
+      </div>
       
       {loading && (
         <div className="d-flex justify-content-center">
@@ -368,9 +520,8 @@ const HistoryTransaksi = ({ pembeliId }) => {
                       <h5 style={{ fontWeight: 'bold', marginBottom: '5px' }}>
                         {transaction.pembelian.id_pembelian || 'N/A'}
                       </h5>
-                      <p style={{ fontSize: '0.85rem', color: colors.dark, margin: 0 }}>
-                        {transaction.pembelian.tanggal_pembelian ? formatDate(transaction.pembelian.tanggal_pembelian) : 'N/A'}
-                      </p>
+                      <p style={{ fontSize: '0.85rem', color: colors.dark, margin: 0 }}>No Nota: {generateNotaNumber(transaction)}</p>
+                      <p style={{ fontSize: '0.85rem', color: colors.dark, margin: 0 }}>Waktu & Tanggal: {transaction.pembelian.tanggal_pembelian ? `${formatDate(transaction.pembelian.tanggal_pembelian)} ${formatTime(transaction.pembelian.tanggal_pembelian)}` : 'N/A'}</p>
                     </div>
                     <p
                       style={{
@@ -391,17 +542,21 @@ const HistoryTransaksi = ({ pembeliId }) => {
                       {transaction.barang.map((item, index) => (
                         <div key={index} style={historyStyles.productItem}>
                           <div className="d-flex flex-row align-items-center mt-2">
-                            <img
-                              src={`http://localhost:3000/uploads/barang/${item.gambar?.split(',')[0] || 'default.jpg'}`}
-                              alt={item.nama || 'No Name'}
-                              style={historyStyles.cardImage}
-                              onError={(e) => { e.target.src = 'default.jpg'; }}
-                            />
+                            <a href={`http://localhost:5173/barang/${item.id_barang}`} className="me-2">
+                              <img
+                                src={`http://localhost:3000/uploads/barang/${item.gambar?.split(',')[0] || 'default.jpg'}`}
+                                alt={item.nama || 'No Name'}
+                                style={historyStyles.cardImage}
+                                onError={(e) => { e.target.src = 'default.jpg'; }}
+                              />
+                            </a>
                             <div className="d-flex justify-content-between align-items-start w-100">
                               <div>
-                                <h6 style={{ fontWeight: 'bold', marginBottom: '5px' }}>
-                                  {item.nama || 'No Name'}
-                                </h6>
+                                <a href={`http://localhost:5173/barang/${item.id_barang}`} style={{ textDecoration: "none", color: 'black'}}>
+                                  <h6 style={{ fontWeight: 'bold', marginBottom: '5px' }}>
+                                    {item.nama || 'No Name'}
+                                  </h6>
+                                </a>
                                 <p style={{ margin: 0, fontSize: '0.9rem', color: colors.dark }}>{item.deskripsi || 'No Description'}</p>
                                 <p style={{ margin: '5px 0 0 0', fontSize: '0.85rem', color: colors.dark }}>
                                   <span style={{ fontWeight: '500' }}>Penjual:</span> {item.penitipName || 'N/A'}
@@ -454,6 +609,21 @@ const HistoryTransaksi = ({ pembeliId }) => {
                           Ulas
                         </button>
                       )}
+                      {
+                        countdowns[transaction.pembelian.id_pembelian] != null ? 
+                        <button
+                          style={{ ...historyStyles.buttonPrimary, marginLeft: '10px' }}
+                          type="button"
+                          data-bs-toggle="modal" data-bs-target="#kirim-bukti-bayar-modal"
+                          onClick={() => setSelectedPembelian(transaction.pembelian)}
+                        >
+                          Bayar (
+                          {(transaction.pembelian.status_pembelian === 'Menunggu pembayaran' || transaction.pembelian.status_pembelian === 'Menunggu verifikasi pembayaran') && (countdowns[transaction.pembelian.id_pembelian] || 'Memuat...')}
+                          )
+                        </button>
+                        :
+                        <></>
+                      }
                       <button
                         style={{ ...historyStyles.buttonPrimary, marginLeft: '10px' }}
                         onClick={() => {
@@ -589,6 +759,7 @@ const HistoryTransaksi = ({ pembeliId }) => {
           )}
         </>
       )}
+      <KirimBuktiBayarModal pembelian={selectedPembelian} onSend={handlePayment}/>
     </div>
   );
 };

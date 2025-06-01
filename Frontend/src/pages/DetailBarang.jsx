@@ -52,6 +52,8 @@ const DetailBarang = () => {
         const barangData = barangResponse.data;
 
         if (barangData) {
+          console.log(barangData);
+          
           const imageUrls = barangData.gambar.split(',').map(img => img.trim());
           setProductImages(imageUrls);
           setBarang(barangData);
@@ -202,7 +204,7 @@ const DetailBarang = () => {
   useEffect(() => {
     fetchDiskusi();
     paginationDiscussion();
-  }, [diskusi])
+  }, [])
   
   const onSubmitPertanyaan = async (pertanyaan) => {
     try {
@@ -222,7 +224,8 @@ const DetailBarang = () => {
   
       await CreateDiskusiProduk(diskusiProduk);
   
-      fetchDiskusi();
+      const responseDiskusi = await fetchDiskusi();
+      if(responseDiskusi) paginationDiscussion();
     } catch (error) {
       console.error("Gagal menambahkan pertanyaan: ", error);
       toast.error("Gagal menambahkan pertanyaan!");
@@ -251,7 +254,8 @@ const DetailBarang = () => {
   
       await UpdateDiskusiProduk(id_diskusi_produk, data);
   
-      fetchDiskusi();
+      const responseDiskusi = await fetchDiskusi();
+      if(responseDiskusi) paginationDiscussion();
     } catch (error) {
       console.error("Gagal menambahkan jawaban: ", error);
       toast.error("Gagal menambahkan jawaban!");
@@ -299,7 +303,7 @@ const DetailBarang = () => {
   if (error || !barang) {
     return (
       <div className="container mt-5">
-        <div className="alert mt-4" role="alert" style={{ backgroundColor: '#FC8A06', color: '#FFFFFF' }}>
+        <div className="alert mt-4" role="alert" style={{ backgroundColor: '#FFFFFF', color: '#FFFFFF' }}>
           {error || "Produk tidak ditemukan"}
         </div>
       </div>
@@ -333,7 +337,7 @@ const DetailBarang = () => {
   }
 
   return (
-    <div className="py-5" style={{ backgroundColor: '#F8F9FA' }}>
+    <div className="py-5" style={{ backgroundColor: '#FFFFFF' }}>
       <div className="container">
         <div className="row">
           {/* Left Column - Product Images & Details */}
@@ -430,6 +434,10 @@ const DetailBarang = () => {
                   >
                     {barang.status_qc}
                   </span>
+                </div>
+                <div className="mb-3">
+                  <span>Status barang: </span>
+                  <span className={`badge rounded-pill p-2 ${barang?.Penitipan?.status_penitipan == "Dalam masa penitipan" ? "text-bg-success" : "text-bg-danger"}`}>{barang?.Penitipan?.status_penitipan == "Dalam masa penitipan" ? "Tersedia" : "Tidak tersedia"}</span>
                 </div>
                 {barang.garansi_berlaku && (
                   <div className="mb-3">
@@ -708,16 +716,10 @@ const DetailBarang = () => {
                       {formatPrice(barang.harga * 1)}
                     </span>
                   </div>
-                  <div className="d-flex justify-content-between mb-2">
-                    <span style={{ color: '#03081F', fontSize: '14px' }}>Diskon:</span>
-                    <span style={{ color: '#03081F', fontSize: '14px', fontWeight: 'bold' }}>
-                      Rp 0
-                    </span>
-                  </div>
                   <div className="d-flex justify-content-between mb-4">
                     <span style={{ color: '#03081F', fontSize: '14px' }}>Biaya Pengiriman:</span>
                     <span style={{ color: '#03081F', fontSize: '14px', fontWeight: 'bold' }}>
-                      Rp 100,000
+                      { selectedShipping == "Pengiriman" ? "Rp 100,000" : "Rp 0"}
                     </span>
                   </div>
                   <div className="d-flex justify-content-between mb-4">
@@ -762,7 +764,7 @@ const DetailBarang = () => {
                     </button>
                   </div>
                   <button 
-                    className="btn w-100 mb-2" 
+                    className={`btn w-100 ${barang?.Penitipan?.status_penitipan == "Dalam masa penitipan" ? "" : "disabled"}`} 
                     style={{ 
                       backgroundColor: '#FFFFFF', 
                       border: '2px solid #028643', 
@@ -784,10 +786,10 @@ const DetailBarang = () => {
                     data-bs-toggle="modal" 
                     data-bs-target="#add-keranjang-modal"
                   >
-                    Keranjang
+                    Tambah ke Keranjang
                   </button>
-                  <button 
-                    className="btn w-100" 
+                  {/* <button 
+                    className={`btn w-100 ${barang?.Penitipan?.status_penitipan == "Dalam masa penitipan" ? "" : "disabled"}`} 
                     style={{ 
                       backgroundColor: '#028643', 
                       color: '#FFFFFF', 
@@ -802,7 +804,7 @@ const DetailBarang = () => {
                     onClick={handleBuyNow}
                   >
                     Checkout!
-                  </button>
+                  </button> */}
                 </div>
               </div>
             </div>

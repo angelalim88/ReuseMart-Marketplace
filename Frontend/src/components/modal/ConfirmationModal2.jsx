@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Button } from 'react-bootstrap';
 import { BsPrinter } from 'react-icons/bs';
-import CetakNotaModal from '../pdf/NotaPenitipanPdf';
+import CetakNotaPengambilan from '../pdf/CetakNotaPengambilan';
 
 const ConfirmationModal = ({ show, handleClose, penitipan, handleConfirm, handleCetakNota }) => {
   const [showNotaModal, setShowNotaModal] = useState(false);
@@ -25,17 +25,15 @@ const ConfirmationModal = ({ show, handleClose, penitipan, handleConfirm, handle
           <Modal.Title>Konfirmasi Pengambilan</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Apakah Anda yakin barang akan telah diambil?</p>
-          {penitipan.status_penitipan === 'Terjual' && (
-            <Button
-              variant="outline-primary"
-              onClick={handleNotaClick}
-              disabled={notaPrinted}
-              className="mb-3"
-            >
-              <BsPrinter className="me-1" /> Cetak Nota
-            </Button>
-          )}
+          <p>Apakah Anda yakin barang ini telah diambil?</p>
+          <Button
+            variant="outline-primary"
+            onClick={handleNotaClick}
+            disabled={notaPrinted}
+            className="mb-3"
+          >
+            <BsPrinter className="me-1" /> Cetak Nota
+          </Button>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={handleClose}>
@@ -44,7 +42,7 @@ const ConfirmationModal = ({ show, handleClose, penitipan, handleConfirm, handle
           <Button
             variant="primary"
             onClick={handleConfirmClick}
-            disabled={penitipan.status_penitipan === 'Terjual' && !notaPrinted}
+            disabled={!notaPrinted}
           >
             Konfirmasi
           </Button>
@@ -52,7 +50,7 @@ const ConfirmationModal = ({ show, handleClose, penitipan, handleConfirm, handle
       </Modal>
 
       {showNotaModal && (
-        <CetakNotaModal
+        <CetakNotaPengambilan
           show={showNotaModal}
           handleClose={() => setShowNotaModal(false)}
           penitipan={penitipan}

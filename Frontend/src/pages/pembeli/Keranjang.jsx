@@ -6,6 +6,11 @@ import { apiKeranjang } from "../../clients/KeranjangService";
 import { apiAlamatPembeli } from '../../clients/AlamatPembeliServices';
 import { toast } from "sonner";
 import DeleteKeranjangModal from "../../components/modal/DeleteKeranjangModal";
+import { apiPembelian } from "../../clients/PembelianService";
+import { CreatePengiriman } from "../../clients/PengirimanService";
+import CheckoutModal from "../../components/modal/CheckoutModal";
+import { apiSubPembelian } from "../../clients/SubPembelianService";
+import { UpdateStatusPenitipan } from "../../clients/PenitipanService";
 
 const Keranjang = () => {
 
@@ -19,7 +24,7 @@ const Keranjang = () => {
   const [keyword, setKeyword] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [sortMethod, setSortMethod] = useState("id-descending");
-  const [sendMethod, setSendMethod] = useState("Dikirim Kurir");
+  const [sendMethod, setSendMethod] = useState("Dikirim kurir");
   const [poinUsed, setPoinUsed] = useState(0);
   const [isOpen, setIsOpen] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("Semua");
@@ -168,7 +173,7 @@ const Keranjang = () => {
     const harga = parseFloat(item?.Barang?.harga || 0);
     return total + harga;
   }, 0);
-  const ongkosKirim = sendMethod == "Ambil di Gudang" ? 0 : (
+  const ongkosKirim = sendMethod == "Ambil di gudang" ? 0 : (
     totalHargaBarang >= 1500000 ? 0 : 100000
   );
   const bonusPoin = totalHargaBarang > 500000 ? (Math.floor(Math.floor(totalHargaBarang/10000) * 1.2)) : (Math.floor(totalHargaBarang/10000));
@@ -184,6 +189,60 @@ const Keranjang = () => {
       setPoinUsed(poinMaksimal);
     }
   }, [poinUsed, totalHargaBarang, ongkosKirim]);
+
+  const pembelian = {
+    id_customer_service: null,
+    id_pembeli: pembeli?.id_pembeli,
+    id_alamat: selectedAlamat?.id_alamat,
+    bukti_transfer: "",
+    tanggal_pembelian: new Date().toISOString(),
+    total_harga: totalHargaBarang,
+    ongkir: ongkosKirim,
+    potongan_poin: potonganPoin,
+    total_bayar: totalHarga,
+    poin_diperoleh: bonusPoin,
+    status_pembelian: "Menunggu pembayaran"
+  }
+
+  const pengiriman = {
+    id_pengkonfirmasi: null,
+    tanggal_mulai: null,
+    tanggal_berakhir: null,
+    status_pengiriman: "Menunggu hasil pembayaran",
+    jenis_pengiriman: sendMethod,
+  }
+
+  const checkout = async () => {
+    try {
+      const responsePembelian = await apiPembelian.createPembelian(pembelian);
+      if(responsePembelian) {
+        console.log(responsePembelian);
+        for (const produk of selectedProduct) {
+          await apiSubPembelian.createSubPembelian({id_pembelian: responsePembelian?.id_pembelian, id_barang: produk?.Barang?.id_barang});
+        }
+        pengiriman.id_pembelian = responsePembelian?.id_pembelian;
+        const responsePengiriman = await CreatePengiriman(pengiriman);
+        if(responsePengiriman) {
+          const responseUpdatePoin = await apiPembeli.updatePembeli(pembeli?.id_pembeli, {total_poin: pembeli?.total_poin - poinUsed});
+          if(responseUpdatePoin) {
+            for (const produk of selectedProduct) {
+              await UpdateStatusPenitipan(produk?.Barang?.Penitipan?.id_penitipan, "Dibeli");
+            }
+            // for (const produk of selectedProduct) {
+            //   await apiKeranjang.deleteKeranjang(produk.id_keranjang);
+            // }
+            toast.success("Pembelian berhasil!");
+          }
+        }
+      }
+    } catch (error) {
+      toast.error("Gagal melakukan pembelian!");
+      console.error("Gagal melakukan pembelian: ", e);
+    } finally {
+      await fetchProduct();
+      await fetchUserData();
+    }
+  }
 
   return (
   <div className="container-fluid mt-4 px-5" style={{ fontFamily: 'Inter, sans-serif', backgroundColor: '#f9f9f9' }}>
@@ -369,13 +428,13 @@ const Keranjang = () => {
               {sendMethod}
             </button>
             <ul class="dropdown-menu w-100 text-center">
-              <li><a class="dropdown-item" href="#" onClick={() => setSendMethod("Dikirim Kurir")}>Dikirim Kurir</a></li>
-              <li><a class="dropdown-item" href="#" onClick={() => setSendMethod("Ambil di Gudang")}>Ambil di Gudang</a></li>
+              <li><a class="dropdown-item" href="#" onClick={() => setSendMethod("Dikirim kurir")}>Dikirim kurir</a></li>
+              <li><a class="dropdown-item" href="#" onClick={() => setSendMethod("Ambil di gudang")}>Ambil di gudang</a></li>
             </ul>
           </div>
 
           {
-            sendMethod == "Dikirim Kurir" ? 
+            sendMethod == "Dikirim kurir" ? 
             <>
               <p className="mb-0">Pilih Alamat</p>
               <div class="dropdown w-100 border border-2 rounded">
@@ -415,11 +474,12 @@ const Keranjang = () => {
           <p className="fs-5 mb-1"><strong>Potongan Poin:</strong> Rp {formatMoney(potonganPoin)}</p>
           <p className="fs-5 mb-1"><strong>Poin Didapatkan:</strong> {bonusPoin}</p>
           <p className="fs-5 mb-2"><strong>Total Harga:</strong> Rp {formatMoney(totalHarga)}</p>
-          <button className={`btn btn-success w-100 ${selectedProduct.length == 0 ? 'disabled' : ''}`}>Beli</button>
+          <button className={`btn btn-success w-100 ${selectedProduct.length == 0 ? 'disabled' : ''}`} type="button" data-bs-toggle="modal" data-bs-target="#checkout-modal">Beli</button>
         </div>
       </div>
 
       <DeleteKeranjangModal keranjang={selectedCart} onDelete={deleteCart} />
+      <CheckoutModal pembelian={pembelian} onCheckout={checkout} />
     </div>
 
   </div>

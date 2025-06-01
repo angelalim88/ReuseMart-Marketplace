@@ -136,7 +136,7 @@ const ListProdukPage = () => {
   // Styling konsisten dengan HomePage
   const styles = {
     container: {
-      backgroundColor: '#F8F9FA',
+      backgroundColor: '#FFFFFF',
       minHeight: '100vh',
       paddingTop: '30px',
       paddingBottom: '50px',

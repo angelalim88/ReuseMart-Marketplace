@@ -19,14 +19,12 @@ const LoginPage = () => {
       console.log("Token di localStorage:", storedToken);
 
       if (!storedToken) {
-        // console.log("Token tidak ditemukan setelah login.");
         throw new Error("Token tidak ditemukan setelah login.");
       }
 
       const role = decodeToken(storedToken).role;
       
       if (!role) {
-        // console.log("Role tidak ditemukan di token.");
         throw new Error("Role tidak ditemukan di token.");
       }
 
@@ -99,31 +97,50 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="login-page">
+    <>
       <ForgotPasswordModal />
-      
-      <div className="container py-5">
-        <LoginRegister onLoginSuccess={handleLoginSuccess} onRegisterSuccess={handleRegisterSuccess} />
-      </div>
-      {error && <p className="error-message">{error}</p>}
+      <LoginRegister onLoginSuccess={handleLoginSuccess} onRegisterSuccess={handleRegisterSuccess} />
+      {error && (
+        <div className="error-overlay">
+          <div className="error-message">{error}</div>
+        </div>
+      )}
 
       <style jsx>{`
-        .login-page {
-          background-color: #fff;
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+        .error-overlay {
+          position: fixed;
+          top: 100px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 9999;
+          pointer-events: none;
         }
 
         .error-message {
-          color: red;
+          background: rgba(220, 53, 69, 0.95);
+          color: white;
+          padding: 15px 25px;
+          border-radius: 10px;
           font-size: 14px;
-          text-align: center;
-          margin-top: 10px;
+          font-weight: 500;
+          box-shadow: 0 8px 25px rgba(220, 53, 69, 0.3);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(220, 53, 69, 0.2);
+          animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
         }
       `}</style>
-    </div>
+    </>
   );
 };
 
