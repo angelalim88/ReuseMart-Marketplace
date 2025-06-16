@@ -75,14 +75,11 @@ ReUse Mart supports six distinct roles, each with specific functionalities:
 
 ### Mobile Application
 
-#### User Interface
-<img src="https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/nonloginuser.png" width="30%" alt="Non-Login User"> <img src="https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/buyer_profilepage.png" width="30%" alt="Buyer Profile"> <img src="https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/buyer_trasaction.png" width="30%" alt="Buyer Transaction">
+#### Buyer User Interface
+<img src="https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/nonloginuser.png" width="30%" alt="Non-Login User"> <img src="https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/buyer_detailitem.png" width="30%" alt="Item Detail"> <img src="https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/buyer_profilepage.png" width="30%" alt="Buyer Profile"> <img src="https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/buyer_trasaction.png" width="30%" alt="Buyer Transaction">
 
-#### Shopping Experience
+#### Merchandise Claim
 <img src="https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/buyer_merchcatalog.png" width="30%" alt="Merchandise Catalog"> <img src="https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/buyer_detailmerch.png" width="30%" alt="Merchandise Detail"> <img src="https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/buyer_claimmerch.png" width="30%" alt="Claim Merchandise">
 
-#### Item Management & Hunter Features
-<img src="https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/buyer_detailitem.png" width="30%" alt="Item Detail"> <img src="https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/hunter_komisi.png" width="30%" alt="Hunter Commission"> <img src="https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/hunter_profile1.png" width="30%" alt="Hunter Profile 1">
-
-#### Hunter Profile
-<img src="https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/hunter_profile2.png" width="30%" alt="Hunter Profile 2">
+#### Hunter Page
+<img src="https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/hunter_profile1.png" width="30%" alt="Hunter Profile 1"> <img src="https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/hunter_profile2.png" width="30%" alt="Hunter Profile 2"><img src="https://github.com/angelalim88/ReuseMart-Marketplace/blob/main/images/hunter_komisi.png" width="30%" alt="Hunter Commission"> 
