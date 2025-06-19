@@ -37,3 +37,9 @@ export const SchedulePickup = (id, data) =>
 
 export const GetPenitipanByStatus = (status) =>
   apiClient.get(ENDPOINTS.GET_PENITIPAN_BY_STATUS(status));
+
+export const SchedulePenitipanPickup = (id, data) =>
+  apiClient.put(ENDPOINTS.SCHEDULE_PENITIPAN_PICKUP(id), data);
+
+export const ConfirmPenitipanPickup = (id) =>
+  apiClient.patch(ENDPOINTS.CONFIRM_PENITIPAN_PICKUP(id));

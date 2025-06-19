@@ -17,5 +17,5 @@ export const UpdatePengirimanStatus = (id, data) =>
     tanggal_mulai: data.tanggal_mulai,
     tanggal_berakhir: data.tanggal_berakhir,
     status_pengiriman: data.status_pengiriman,
-    jenis_pengiriman: data.jenis_pengiriman || 'Ambil di gudang',
+    jenis_pengiriman: data.jenis_pengiriman,
   });

@@ -8,6 +8,7 @@ import { SchedulePickup } from '../../clients/PenitipanService';
 import { UpdatePengirimanStatus } from '../../clients/PengirimanService';
 import CetakNotaPengambilan from '../../components/pdf/CetakNotaPengambilan';
 import { SendNotification } from '../../clients/NotificationServices';
+import { SchedulePenitipanPickup } from '../../clients/PenitipanService';
 
 const CardListPengambilan = ({ transaksi, handleConfirmDiambil, handleLihatDetail, setTransaksiList, pegawai, notaPrinted }) => {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
@@ -79,83 +80,102 @@ const CardListPengambilan = ({ transaksi, handleConfirmDiambil, handleLihatDetai
 
   const handleScheduleSubmit = async () => {
     try {
-      if (!transaksi.pengiriman?.id_pengiriman) {
-        throw new Error('ID pengiriman tidak ditemukan');
-      }
-      if (!pegawai?.id_pegawai) {
-        throw new Error('ID pegawai tidak ditemukan');
-      }
-
-      const startDate = new Date(selectedDate);
-      if (isNaN(startDate.getTime())) {
-        throw new Error('Tanggal mulai tidak valid');
-      }
-      startDate.setHours(8, 0, 0, 0);
-      const endDate = new Date(startDate);
-      let workDaysAdded = 0;
-      while (workDaysAdded < 2) {
-        endDate.setDate(endDate.getDate() + 1);
-        const dayOfWeek = endDate.getDay();
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) workDaysAdded++;
-      }
-      endDate.setHours(20, 0, 0, 0);
-
-      await SchedulePickup(transaksi.pengiriman.id_pengiriman, {
-        tanggal_mulai: startDate.toISOString(),
-        tanggal_berakhir: endDate.toISOString(),
-      });
-
-      await UpdatePengirimanStatus(transaksi.pengiriman.id_pengiriman, {
-        id_pembelian: transaksi.id_pembelian,
-        id_pengkonfirmasi: pegawai.id_pegawai,
-        tanggal_mulai: startDate.toISOString(),
-        tanggal_berakhir: endDate.toISOString(),
-        status_pengiriman: 'Menunggu diambil pembeli',
-        jenis_pengiriman: 'Ambil di gudang',
-      });
-
-      setTransaksiList((prev) => {
-        const newList = [...prev];
-        const index = newList.findIndex((item) => item.id_pembelian === transaksi.id_pembelian);
-        if (index !== -1) {
-          newList[index] = {
-            ...newList[index],
-            pengiriman: {
-              ...newList[index].pengiriman,
-              status_pengiriman: 'Menunggu diambil pembeli',
-              tanggal_mulai: startDate.toISOString(),
-              tanggal_berakhir: endDate.toISOString(),
-              id_pengkonfirmasi: pegawai.id_pegawai,
-            },
-          };
+      // Validasi untuk data penitipan
+      if (transaksi.type === 'penitipan') {
+        if (!transaksi.id_penitipan) {
+          throw new Error('ID penitipan tidak ditemukan');
         }
-        return newList;
-      });
-      
-      
-      // kirim notif ke pembeli
-      const pembeliNotification = { 
-        fcmToken: transaksi?.Pembeli?.Akun?.fcm_token,
-        title: "Jadwal Pengambilan",
-        body: `Jadwal pengambilan untuk pembelian ${transaksi?.id_pembelian} sudah ditentukan!`
-      }
-      
-      if(pembeliNotification.fcmToken){
-        await SendNotification(pembeliNotification);
-      }
 
-      // kirim notif ke penitip
-      transaksi?.barang.forEach( async (barang) => {
-        const penitipNotification = { 
-          fcmToken: barang?.Penitip?.Akun?.fcm_token,
-          title: "Jadwal Pengambilan",
-          body: `Jadwal pengambilan untuk barang ${barang?.id_barang} sudah ditentukan!`
+        const startDate = new Date(selectedDate);
+        if (isNaN(startDate.getTime())) {
+          throw new Error('Tanggal mulai tidak valid');
         }
+        startDate.setHours(8, 0, 0, 0);
         
-        if(penitipNotification.fcmToken) {
-          await SendNotification(penitipNotification);
+        const endDate = new Date(startDate);
+        let workDaysAdded = 0;
+        while (workDaysAdded < 2) {
+          endDate.setDate(endDate.getDate() + 1);
+          const dayOfWeek = endDate.getDay();
+          if (dayOfWeek !== 0 && dayOfWeek !== 6) workDaysAdded++;
         }
-      });
+        endDate.setHours(20, 0, 0, 0);
+
+        // Panggil endpoint khusus penitipan
+        await SchedulePenitipanPickup(transaksi.id_penitipan, {
+          tanggal_mulai: startDate.toISOString(),
+          tanggal_berakhir: endDate.toISOString(),
+        });
+
+        // Update state transaksi list untuk penitipan
+        setTransaksiList((prev) => {
+          const newList = [...prev];
+          const index = newList.findIndex((item) => item.id_penitipan === transaksi.id_penitipan);
+          if (index !== -1) {
+            newList[index] = {
+              ...newList[index],
+              tanggal_batas_pengambilan: new Date(endDate.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+            };
+          }
+          return newList;
+        });
+
+      } else {
+        // Logic untuk pembelian (kode asli tanpa notifikasi)
+        if (!transaksi.pengiriman?.id_pengiriman) {
+          throw new Error('ID pengiriman tidak ditemukan');
+        }
+        if (!pegawai?.id_pegawai) {
+          throw new Error('ID pegawai tidak ditemukan');
+        }
+
+        const startDate = new Date(selectedDate);
+        if (isNaN(startDate.getTime())) {
+          throw new Error('Tanggal mulai tidak valid');
+        }
+        startDate.setHours(8, 0, 0, 0);
+        
+        const endDate = new Date(startDate);
+        let workDaysAdded = 0;
+        while (workDaysAdded < 2) {
+          endDate.setDate(endDate.getDate() + 1);
+          const dayOfWeek = endDate.getDay();
+          if (dayOfWeek !== 0 && dayOfWeek !== 6) workDaysAdded++;
+        }
+        endDate.setHours(20, 0, 0, 0);
+
+        await SchedulePickup(transaksi.pengiriman.id_pengiriman, {
+          tanggal_mulai: startDate.toISOString(),
+          tanggal_berakhir: endDate.toISOString(),
+        });
+
+        await UpdatePengirimanStatus(transaksi.pengiriman.id_pengiriman, {
+          id_pembelian: transaksi.id_pembelian,
+          id_pengkonfirmasi: pegawai.id_pegawai,
+          tanggal_mulai: startDate.toISOString(),
+          tanggal_berakhir: endDate.toISOString(),
+          status_pengiriman: 'Menunggu diambil pembeli',
+          jenis_pengiriman: 'Ambil di gudang',
+        });
+
+        setTransaksiList((prev) => {
+          const newList = [...prev];
+          const index = newList.findIndex((item) => item.id_pembelian === transaksi.id_pembelian);
+          if (index !== -1) {
+            newList[index] = {
+              ...newList[index],
+              pengiriman: {
+                ...newList[index].pengiriman,
+                status_pengiriman: 'Menunggu diambil pembeli',
+                tanggal_mulai: startDate.toISOString(),
+                tanggal_berakhir: endDate.toISOString(),
+                id_pengkonfirmasi: pegawai.id_pegawai,
+              },
+            };
+          }
+          return newList;
+        });
+      }
 
       handleCloseScheduleModal();
       alert('Jadwal pengambilan berhasil disimpan!');
@@ -164,6 +184,8 @@ const CardListPengambilan = ({ transaksi, handleConfirmDiambil, handleLihatDetai
       alert(`Gagal menyimpan jadwal pengambilan: ${error.message}. Silakan coba lagi.`);
     }
   };
+
+
 
   const isConfirmDisabled = !transaksi.pengiriman?.tanggal_mulai || !transaksi.pengiriman?.tanggal_berakhir;
   const isHangus = transaksi.pengiriman?.status_pengiriman == 'Hangus';
@@ -238,15 +260,27 @@ const CardListPengambilan = ({ transaksi, handleConfirmDiambil, handleLihatDetai
               variant="outline-success"
               className="atur-pengiriman-btn"
               onClick={handleOpenConfirmationModal}
-              disabled={isConfirmDisabled || isHangus || transaksi.pengiriman.status_pengiriman == 'Selesai'}
+              disabled={
+                isHangus || 
+                (transaksi.type === 'pembelian' && transaksi.pengiriman?.status_pengiriman === 'Selesai') ||
+                (transaksi.type === 'penitipan' && transaksi.status_pengiriman !== 'Menunggu diambil penitip')
+              }
             >
               <BsBoxSeam className="me-1" /> Konfirmasi Diambil
             </Button>
+
             <Button
               variant="outline-primary"
               className="schedule-btn"
               onClick={handleOpenScheduleModal}
-              disabled={transaksi.pengiriman?.status_pengiriman !== 'Diproses' || isHangus || transaksi.pengiriman.status_pengiriman == 'Selesai'}
+              disabled={
+                isHangus || 
+                (transaksi.type === 'pembelian' && 
+                (transaksi.pengiriman?.status_pengiriman !== 'Diproses' || 
+                  transaksi.pengiriman?.status_pengiriman === 'Selesai')) ||
+                (transaksi.type === 'penitipan' && 
+                transaksi.status_pengiriman !== 'Menunggu diambil penitip')
+              }
             >
               <BsCalendar className="me-1" /> Atur Jadwal Pengambilan
             </Button>
@@ -261,7 +295,7 @@ const CardListPengambilan = ({ transaksi, handleConfirmDiambil, handleLihatDetai
               variant="outline-primary"
               className="cetak-nota-btn"
               onClick={handleCetakNota}
-              disabled={isHangus}
+              disabled={isHangus || transaksi.status_pengiriman == 'Menunggu diambil penitip'}
             >
               <BsPrinter className="me-1" /> Cetak Nota
             </Button>

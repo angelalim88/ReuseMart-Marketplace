@@ -57,7 +57,7 @@ const DaftarBarang = () => {
     { id: 'Dalam masa penitipan', name: 'Dalam Masa Penitipan' },
     { id: 'Terjual', name: 'Terjual' },
     { id: 'Didonasikan', name: 'Didonasikan' },
-    { id: 'Dibeli', name: 'Dibeli' },
+    { id: 'Menunggu diambil', name: 'Menunggu diambil' },
     { id: 'Menunggu didonasikan', name: 'Menunggu Didonasikan' }
   ];
 
@@ -250,7 +250,7 @@ const DaftarBarang = () => {
         await UpdatePenitipan(id, {
           tanggal_akhir_penitipan: tanggalBaru.toISOString(),
           tanggal_batas_pengambilan: tanggalBaru.toISOString(),
-          status_penitipan: 'Menunggu diambil'
+          status_penitipan: 'Menunggu diambil penitip'
         });
         showNotification('Penitipan berhasil diatur untuk diambil', 'success');
         fetchData();

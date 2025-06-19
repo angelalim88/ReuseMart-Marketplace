@@ -11,7 +11,7 @@ import PaginationComponent from '../../components/pagination/Pagination';
 import CetakNotaPengambilan from '../../components/pdf/CetakNotaPengambilan';
 import TransaksiCard from '../../components/card/CardListPengambilan';
 import { UpdatePengirimanStatus } from '../../clients/PengirimanService';
-import { UpdateStatusPenitipan, GetPenitipanByStatus, GetPenitipanByIdBarang } from '../../clients/PenitipanService';
+import { UpdateStatusPenitipan, GetPenitipanByStatus, GetPenitipanByIdBarang, SchedulePenitipanPickup, ConfirmPenitipanPickup, UpdatePenitipan } from '../../clients/PenitipanService';
 import { CreateTransaksi } from '../../clients/TransaksiService'; // Add this
 
 const Pengambilan = () => {
@@ -41,8 +41,8 @@ const Pengambilan = () => {
     { id: 'Diproses', name: 'Diproses' },
     { id: 'Selesai', name: 'Selesai' },
     { id: 'Hangus', name: 'Hangus' },
+    { id: 'Menunggu diambil penitip', name: 'Menunggu Diambil Penitip' },
     { id: 'Menunggu diambil pembeli', name: 'Menunggu Diambil Pembeli' },
-    { id: 'Menunggu diambil kembali', name: 'Menunggu Diambil Kembali' },
   ];
 
   const showNotification = (message, type = 'success') => {
@@ -198,14 +198,14 @@ const Pengambilan = () => {
       // Fetch Penitipan data for Menunggu diambil kembali
       let penitipanData = [];
       try {
-        const penitipanResponse = await GetPenitipanByStatus('Menunggu diambil');
+        const penitipanResponse = await GetPenitipanByStatus('Menunggu diambil penitip');
         console.log('penitipan menunggu diambil response: ', penitipanResponse.data);
 
         const rawPenitipanData = penitipanResponse.data || penitipanResponse || [];
         penitipanData = rawPenitipanData.map((penitipan) => ({
           id_penitipan: penitipan.id_penitipan,
           type: 'penitipan',
-          status_pengiriman: 'Menunggu diambil kembali', // Virtual status
+          status_pengiriman: 'Menunggu diambil penitip', // Virtual status
           barang: [
             {
               id_barang: penitipan.Barang.id_barang,
@@ -347,78 +347,107 @@ const Pengambilan = () => {
   const handleConfirmDiambil = async (transaksi) => {
     try {
       const today = new Date().toISOString();
-      const updatedStatus = 'Sudah diambil pembeli';
 
-      // Update Pengiriman status
-      await UpdatePengirimanStatus(transaksi.pengiriman.id_pengiriman, {
-        id_pembelian: transaksi.id_pembelian,
-        id_pengkonfirmasi: pegawai.id_pegawai,
-        tanggal_mulai: transaksi.pengiriman.tanggal_mulai,
-        tanggal_berakhir: today,
-        status_pengiriman: updatedStatus,
-        jenis_pengiriman: 'Ambil di gudang',
-      });
+      if (transaksi.type === 'penitipan') {
+        // Untuk penitipan, langsung update status penitipan menggunakan UpdatePenitipan yang sudah ada
+        await UpdatePenitipan(transaksi.id_penitipan, {
+          status_penitipan: 'Sudah diambil kembali penitip'
+        });
+        
+        // Update state untuk penitipan
+        setFilteredTransaksi((prev) =>
+          prev.map((item) =>
+            item.id_penitipan === transaksi.id_penitipan
+              ? {
+                  ...item,
+                  status_pengiriman: 'Sudah diambil kembali penitip',
+                  barang: item.barang?.map(barang => ({
+                    ...barang,
+                    Penitipan: {
+                      ...barang.Penitipan,
+                      status_penitipan: 'Sudah diambil kembali penitip'
+                    }
+                  }))
+                }
+              : item
+          )
+        );
 
-      // Create Transaksi for each barang
-      for (const barang of transaksi.barang) {
-        if (barang.id_penitip) {
-          try {
-            const id_sub_pembelian = barang.id_sub_pembelian;
-            if (!id_sub_pembelian) throw new Error(`SubPembelian not found for barang ${barang.id_barang}`);
+        showNotification('Penitipan berhasil dikonfirmasi diambil kembali!', 'success');
+      } else {
+        // Logic untuk pembelian (kode asli)
+        const updatedStatus = 'Sudah diambil pembeli';
 
-            const penitipan = barang.Penitipan;
-            if (!penitipan) throw new Error(`Penitipan not found for barang ${barang.id_barang}`);
+        // Update Pengiriman status
+        await UpdatePengirimanStatus(transaksi.pengiriman.id_pengiriman, {
+          id_pembelian: transaksi.id_pembelian,
+          id_pengkonfirmasi: pegawai.id_pegawai,
+          tanggal_mulai: transaksi.pengiriman.tanggal_mulai,
+          tanggal_berakhir: today,
+          status_pengiriman: updatedStatus,
+          jenis_pengiriman: 'Ambil di gudang',
+        });
 
-            const harga = parseFloat(barang.harga);
-            let komisi_reusemart_percent = penitipan.perpanjangan ? 0.25 : 0.20;
-            let komisi_reusemart = harga * komisi_reusemart_percent;
-            let komisi_hunter = barang.id_hunter ? harga * 0.05 : 0;
-            if (komisi_hunter > 0) komisi_reusemart -= komisi_hunter;
+        // Create Transaksi for each barang
+        for (const barang of transaksi.barang) {
+          if (barang.id_penitip) {
+            try {
+              const id_sub_pembelian = barang.id_sub_pembelian;
+              if (!id_sub_pembelian) throw new Error(`SubPembelian not found for barang ${barang.id_barang}`);
 
-            const saleDate = new Date(transaksi.tanggal_pembelian);
-            const penitipanDate = new Date(penitipan.tanggal_awal_penitipan);
-            const daysDiff = (saleDate - penitipanDate) / (1000 * 60 * 60 * 24);
-            let bonus_cepat = daysDiff < 7 ? harga * 0.10 * komisi_reusemart_percent : 0;
-            if (bonus_cepat > 0) komisi_reusemart -= bonus_cepat;
+              const penitipan = barang.Penitipan;
+              if (!penitipan) throw new Error(`Penitipan not found for barang ${barang.id_barang}`);
 
-            const pendapatan = harga - komisi_reusemart - komisi_hunter;
+              const harga = parseFloat(barang.harga);
+              let komisi_reusemart_percent = penitipan.perpanjangan ? 0.25 : 0.20;
+              let komisi_reusemart = harga * komisi_reusemart_percent;
+              let komisi_hunter = barang.id_hunter ? harga * 0.05 : 0;
+              if (komisi_hunter > 0) komisi_reusemart -= komisi_hunter;
 
-            const transaksiPayload = {
-              id_sub_pembelian,
-              komisi_reusemart,
-              komisi_hunter: komisi_hunter != null ? komisi_hunter : 0,
-              pendapatan,
-              bonus_cepat: bonus_cepat != null ? bonus_cepat : 0,
-            };
-            console.log(`Creating Transaksi for barang ${barang.id_barang}:`, transaksiPayload);
-            console.log(transaksiPayload);
-            await CreateTransaksi(transaksiPayload);
-            console.log(`Created Transaksi for barang ${barang.id_barang}, id_sub_pembelian: ${id_sub_pembelian}`);
-          } catch (err) {
-            console.error(`Failed to create Transaksi for barang ${barang.id_barang}:`, err.message, err.response);
-            showNotification(`Gagal membuat transaksi untuk barang ${barang.nama}!`, 'danger');
+              const saleDate = new Date(transaksi.tanggal_pembelian);
+              const penitipanDate = new Date(penitipan.tanggal_awal_penitipan);
+              const daysDiff = (saleDate - penitipanDate) / (1000 * 60 * 60 * 24);
+              let bonus_cepat = daysDiff < 7 ? harga * 0.10 * komisi_reusemart_percent : 0;
+              if (bonus_cepat > 0) komisi_reusemart -= bonus_cepat;
+
+              const pendapatan = harga - komisi_reusemart - komisi_hunter;
+
+              const transaksiPayload = {
+                id_sub_pembelian,
+                komisi_reusemart,
+                komisi_hunter: komisi_hunter != null ? komisi_hunter : 0,
+                pendapatan,
+                bonus_cepat: bonus_cepat != null ? bonus_cepat : 0,
+              };
+              console.log(`Creating Transaksi for barang ${barang.id_barang}:`, transaksiPayload);
+              await CreateTransaksi(transaksiPayload);
+              console.log(`Created Transaksi for barang ${barang.id_barang}, id_sub_pembelian: ${id_sub_pembelian}`);
+            } catch (err) {
+              console.error(`Failed to create Transaksi for barang ${barang.id_barang}:`, err.message, err.response);
+              showNotification(`Gagal membuat transaksi untuk barang ${barang.nama}!`, 'danger');
+            }
           }
         }
+
+        // Update filteredTransaksi untuk pembelian
+        setFilteredTransaksi((prev) =>
+          prev.map((item) =>
+            item.id_pembelian === transaksi.id_pembelian
+              ? {
+                  ...item,
+                  pengiriman: {
+                    ...item.pengiriman,
+                    status_pengiriman: updatedStatus,
+                    tanggal_berakhir: today,
+                    id_pengkonfirmasi: pegawai.id_pegawai,
+                  },
+                }
+              : item
+          )
+        );
+
+        showNotification(`Pengambilan ${updatedStatus} berhasil disimpan!`, 'success');
       }
-
-      // Update filteredTransaksi
-      setFilteredTransaksi((prev) =>
-        prev.map((item) =>
-          item.id_pembelian === transaksi.id_pembelian
-            ? {
-                ...item,
-                pengiriman: {
-                  ...item.pengiriman,
-                  status_pengiriman: updatedStatus,
-                  tanggal_berakhir: today,
-                  id_pengkonfirmasi: pegawai.id_pegawai,
-                },
-              }
-            : item
-        )
-      );
-
-      showNotification(`Pengambilan ${updatedStatus} berhasil disimpan!`, 'success');
     } catch (error) {
       console.error('Error in handleConfirmDiambil:', error.message, error.response?.data);
       showNotification('Gagal mengkonfirmasi pengambilan!', 'danger');

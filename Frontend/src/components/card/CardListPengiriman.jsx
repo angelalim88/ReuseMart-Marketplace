@@ -80,22 +80,26 @@ const CardListPengiriman = ({ transaksi, handleCetakNota, handleConfirmDiambil, 
         throw new Error('Tanggal mulai tidak valid');
       }
       startDate.setHours(8, 0, 0, 0);
-      const endDate = new Date(startDate); // Same as startDate
+      const endDate = new Date(startDate);
       endDate.setHours(20, 0, 0, 0);
 
-      const scheduleResponse = await SchedulePickup(transaksi.pengiriman.id_pengiriman, {
+      // 1. Schedule pickup terlebih dahulu
+      await SchedulePickup(transaksi.pengiriman.id_pengiriman, {
         tanggal_mulai: startDate.toISOString(),
         tanggal_berakhir: endDate.toISOString(),
       });
 
-      const updateResponse = await UpdatePengirimanStatus(
-        transaksi.pengiriman.id_pengiriman,
-        'Sedang dikirim',
-        startDate.toISOString(),
-        endDate.toISOString(),
-        selectedKurir
-      );
+      // 2. Update status pengiriman dengan format yang benar (object sebagai parameter kedua)
+      await UpdatePengirimanStatus(transaksi.pengiriman.id_pengiriman, {
+        id_pembelian: transaksi.id_pembelian,
+        id_pengkonfirmasi: selectedKurir,
+        tanggal_mulai: startDate.toISOString(),
+        tanggal_berakhir: endDate.toISOString(),
+        status_pengiriman: 'Sedang dikirim',
+        jenis_pengiriman: 'Dikirim kurir',
+      });
 
+      // 3. Update state
       setTransaksiList((prev) => {
         const newList = [...prev];
         const index = newList.findIndex((item) => item.id_pembelian === transaksi.id_pembelian);
@@ -104,61 +108,68 @@ const CardListPengiriman = ({ transaksi, handleCetakNota, handleConfirmDiambil, 
             ...newList[index],
             pengiriman: {
               ...newList[index].pengiriman,
-              status_pengiriman: 'Menunggu diambil pembeli',
+              status_pengiriman: 'Sedang dikirim',
               tanggal_mulai: startDate.toISOString(),
               tanggal_berakhir: endDate.toISOString(),
               id_pengkonfirmasi: selectedKurir,
+              jenis_pengiriman: 'Dikirim kurir',
             },
           };
         }
-        
         return newList;
       });
 
-      // kirim notif ke pembeli
-      const pembeliNotification = { 
-        fcmToken: transaksi?.Pembeli?.Akun?.fcm_token,
-        title: "Jadwal Pengiriman",
-        body: `Jadwal Pengiriman untuk pembelian ${transaksi?.id_pembelian} sudah ditentukan!`
-      }
-      
-      if(pembeliNotification.fcmToken) {
-        await SendNotification(pembeliNotification);
-      }
-      
-      // kirim notif ke penitip
-      transaksi?.barang.forEach( async (barang) => {
-        const penitipNotification = { 
-          fcmToken: barang?.Penitip?.Akun?.fcm_token,
-          title: "Jadwal Pengiriman",
-          body: `Jadwal Pengiriman untuk barang ${barang?.id_barang} sudah ditentukan!`
-        }
-        if(penitipNotification.fcmToken) {
-          await SendNotification(penitipNotification);
-        }
-      });
-      
-      // kirim notif ke kurir
-      const responseKurir = await GetPegawaiById(selectedKurir);
-      if(responseKurir) {
-        const data = responseKurir.data;
-        const kurirNotification = { 
-          fcmToken: data?.Akun?.fcm_token,
+      // 4. Skip notifikasi untuk menghindari error FCM
+      try {
+        // Notifikasi ke pembeli
+        const pembeliNotification = { 
+          fcmToken: transaksi?.Pembeli?.Akun?.fcm_token,
           title: "Jadwal Pengiriman",
           body: `Jadwal Pengiriman untuk pembelian ${transaksi?.id_pembelian} sudah ditentukan!`
+        };
+        
+        if(pembeliNotification.fcmToken) {
+          await SendNotification(pembeliNotification);
         }
-        if(kurirNotification.fcmToken) {
-          await SendNotification(kurirNotification);
+        
+        // Notifikasi ke penitip
+        transaksi?.barang.forEach(async (barang) => {
+          const penitipNotification = { 
+            fcmToken: barang?.Penitip?.Akun?.fcm_token,
+            title: "Jadwal Pengiriman",
+            body: `Jadwal Pengiriman untuk barang ${barang?.id_barang} sudah ditentukan!`
+          };
+          if(penitipNotification.fcmToken) {
+            await SendNotification(penitipNotification);
+          }
+        });
+        
+        // Notifikasi ke kurir
+        const responseKurir = await GetPegawaiById(selectedKurir);
+        if(responseKurir) {
+          const data = responseKurir.data;
+          const kurirNotification = { 
+            fcmToken: data?.Akun?.fcm_token,
+            title: "Jadwal Pengiriman",
+            body: `Jadwal Pengiriman untuk pembelian ${transaksi?.id_pembelian} sudah ditentukan!`
+          };
+          if(kurirNotification.fcmToken) {
+            await SendNotification(kurirNotification);
+          }
         }
+      } catch (notificationError) {
+        console.warn('Gagal mengirim notifikasi, tapi penjadwalan berhasil:', notificationError);
+        // Jangan throw error, biarkan proses lanjut
       }
 
       handleCloseScheduleModal();
-      alert('Jadwal pengambilan berhasil disimpan!');
+      alert('Jadwal pengiriman berhasil disimpan!');
     } catch (error) {
       console.error('Error scheduling pickup:', error.message, error.response?.data);
-      alert(`Gagal menyimpan jadwal pengambilan: ${error.message}. Silakan coba lagi.`);
+      alert(`Gagal menyimpan jadwal pengiriman: ${error.message}. Silakan coba lagi.`);
     }
   };
+
 
   const isConfirmDisabled = 
     !transaksi.pengiriman?.tanggal_mulai ||
