@@ -4,6 +4,9 @@ import { ENDPOINTS } from "../api/endpoints";
 export const GetAllClaimMerchandise = () => 
   apiClient.get(ENDPOINTS.GET_ALL_CLAIM_MERCHANDISE);
 
+export const GetAllClaimMerchandiseCustom = () => 
+  apiClient.get(ENDPOINTS.GET_ALL_CLAIM_MERCHANDISE_CUSTOM);
+
 export const GetClaimMerchandiseById = (id) => 
   apiClient.get(ENDPOINTS.SHOW_CLAIM_MERCHANDISE(id));
 

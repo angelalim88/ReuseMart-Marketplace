@@ -151,6 +151,7 @@ export const ENDPOINTS = {
 
     // Claim Merchandise
     GET_ALL_CLAIM_MERCHANDISE: "/claim-merchandise",
+    GET_ALL_CLAIM_MERCHANDISE_CUSTOM: "/claim-merchandise/custom",
     CREATE_CLAIM_MERCHANDISE: "/claim-merchandise",
     SHOW_CLAIM_MERCHANDISE: (id) => `/claim-merchandise/${id}`,
     UPDATE_CLAIM_MERCHANDISE: (id) => `/claim-merchandise/${id}`,

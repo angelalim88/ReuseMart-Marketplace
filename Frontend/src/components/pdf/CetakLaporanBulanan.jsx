@@ -4,112 +4,213 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const CetakLaporanBulanan = ({ reportData, annualReportData, selectedMonth, selectedYear, months, formatCurrency, formatNumber, setShowModal }) => {
+  
+  const formatDateLong = (date) => {
+    return date.toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
   const generatePDF = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
-    const margin = 15; // Margin konsisten untuk seluruh dokumen
+    const margin = 10;
 
-    // Header
-    doc.setFontSize(18);
-    doc.setTextColor(2, 134, 67);
-    doc.text('LAPORAN PENJUALAN REUSEMART', pageWidth / 2, 15, { align: 'center' });
-    
+    // Header Company Info
     doc.setFontSize(12);
-    doc.setTextColor(3, 8, 31);
-    doc.text(`${months[selectedMonth - 1]} ${selectedYear}`, pageWidth / 2, 22, { align: 'center' });
+    doc.setFont("helvetica", "bold");
+    doc.text("ReUse Mart", margin, 10);
+    doc.setFont("helvetica", "normal");
+    doc.text("Jl. Green Eco Park No. 456 Yogyakarta", margin, 16);
 
-    // Summary Box
-    doc.setDrawColor(217, 217, 217);
-    doc.setFillColor(249, 249, 249);
-    doc.roundedRect(margin, 28, pageWidth - (margin * 2), 45, 3, 3, 'FD');
-    
-    doc.setFontSize(10);
-    doc.setTextColor(3, 8, 31);
-    doc.text('RINGKASAN KEUANGAN', margin + 5, 35);
-    doc.text(`Pendapatan: ${formatCurrency(reportData.totalPendapatan)}`, margin + 5, 43);
-    doc.text(`Komisi Reusemart: ${formatCurrency(reportData.totalKomisiReusemart)}`, margin + 5, 50);
-    doc.text(`Komisi Hunter: ${formatCurrency(reportData.totalKomisiHunter)}`, margin + 5, 57);
-    doc.text(`Bonus Cepat: ${formatCurrency(reportData.totalBonusCepat)}`, margin + 5, 64);
-    
-    doc.setTextColor(2, 134, 67);
-    doc.text(`Keuntungan Bersih: ${formatCurrency(reportData.keuntunganBersih)}`, pageWidth / 2 + 5, 43);
-    
-    doc.setTextColor(3, 8, 31);
-    doc.text(`Transaksi: ${formatNumber(reportData.totalTransaksi)}`, pageWidth / 2 + 5, 53);
-    doc.text(`Rata-rata/Transaksi: ${formatCurrency(reportData.rataRataPendapatan)}`, pageWidth / 2 + 5, 63);
+    // Main Title
+    doc.setFont("helvetica", "bold");
+    const title = "LAPORAN PENJUALAN BULANAN";
+    const titleY = 26;
+    doc.text(title, margin, titleY);
+    const textWidth = doc.getTextWidth(title);
+    doc.setLineWidth(0.5);
+    doc.line(margin, titleY + 1, margin + textWidth, titleY + 1);
 
-    // Daily Performance Table
-    let finalY = 78;
+    // Report Info
+    doc.setFont("helvetica", "normal");
+    doc.text(`Periode: ${months[selectedMonth - 1]} ${selectedYear}`, margin, 32);
+    doc.text(`Tanggal cetak: ${formatDateLong(new Date())}`, margin, 38);
+
+    let currentY = 48;
+
+    // Summary Section
+    doc.setFont("helvetica", "bold");
+    doc.text("RINGKASAN KEUANGAN", margin, currentY);
+    currentY += 2;
+
+    // Draw underline for section title
+    const summaryWidth = doc.getTextWidth("RINGKASAN KEUANGAN");
+    doc.setLineWidth(0.3);
+    doc.line(margin, currentY, margin + summaryWidth, currentY);
+    currentY += 8;
+
+    // Summary Table
+    const summaryData = [
+      ["Total Pendapatan", formatCurrency(reportData.totalPendapatan)],
+      ["Komisi Reusemart", formatCurrency(reportData.totalKomisiReusemart)],
+      ["Komisi Hunter", formatCurrency(reportData.totalKomisiHunter)],
+      ["Bonus Cepat", formatCurrency(reportData.totalBonusCepat)],
+      ["Keuntungan Bersih", formatCurrency(reportData.keuntunganBersih)],
+      ["Total Transaksi", formatNumber(reportData.totalTransaksi)],
+      ["Rata-rata per Transaksi", formatCurrency(reportData.rataRataPendapatan)]
+    ];
+
+    autoTable(doc, {
+      startY: currentY,
+      body: summaryData,
+      theme: 'plain',
+      styles: {
+        font: "helvetica",
+        fontSize: 10,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1
+      },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 60 },
+        1: { halign: 'right', cellWidth: 50 }
+      },
+      margin: { left: margin, right: margin }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 15;
+
+    // Daily Performance Section
     if (Array.isArray(reportData.dailyData) && reportData.dailyData.length > 0) {
-      doc.setFontSize(10);
-      doc.text('PERFORMA HARIAN', margin, finalY);
+      // Check if we need a new page
+      if (currentY + 60 > pageHeight - 20) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      doc.setFont("helvetica", "bold");
+      doc.text("PERFORMA HARIAN", margin, currentY);
+      currentY += 2;
       
-      const tableData = reportData.dailyData.map(day => [
+      const dailyWidth = doc.getTextWidth("PERFORMA HARIAN");
+      doc.setLineWidth(0.3);
+      doc.line(margin, currentY, margin + dailyWidth, currentY);
+      currentY += 8;
+      
+      const dailyTableData = reportData.dailyData.map(day => [
         day.hari.toString(),
         formatCurrency(day.pendapatan),
         formatCurrency(day.keuntungan),
-        day.transaksi.toString()
+        formatNumber(day.transaksi),
+        day.transaksi > 0 ? formatCurrency(day.pendapatan / day.transaksi) : formatCurrency(0)
       ]);
       
       autoTable(doc, {
-        startY: finalY + 3,
-        head: [['Tanggal', 'Pendapatan', 'Keuntungan', 'Transaksi']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: { 
-          fillColor: [2, 134, 67],
-          textColor: [255, 255, 255],
-          fontSize: 9
+        startY: currentY,
+        head: [['Tanggal', 'Pendapatan', 'Keuntungan', 'Transaksi', 'Rata-rata']],
+        body: dailyTableData,
+        theme: 'plain',
+        styles: {
+          font: "helvetica",
+          fontSize: 9,
+          lineColor: [0, 0, 0],
+          lineWidth: 0.1
         },
-        bodyStyles: { fontSize: 8, cellPadding: 2 },
-        margin: { left: margin, right: margin },
-        columnStyles: { 0: { cellWidth: 20 }, 3: { cellWidth: 20 } }
+        headStyles: {
+          fillColor: [255, 255, 255],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold'
+        },
+        bodyStyles: {
+          textColor: [0, 0, 0]
+        },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 20 },
+          1: { halign: 'right', cellWidth: 35 },
+          2: { halign: 'right', cellWidth: 35 },
+          3: { halign: 'center', cellWidth: 25 },
+          4: { halign: 'right', cellWidth: 35 }
+        },
+        margin: { left: margin, right: margin }
       });
-      finalY = doc.lastAutoTable.finalY + 8; // Kurangi spacing
+      
+      currentY = doc.lastAutoTable.finalY + 15;
     }
     
-    // Weekly Summary
+    // Weekly Summary Section
     if (Array.isArray(reportData.weeklyData) && reportData.weeklyData.length > 0) {
-      if (finalY + 40 > pageHeight - 20) {
+      if (currentY + 40 > pageHeight - 20) {
         doc.addPage();
-        finalY = 15;
+        currentY = 20;
       }
-      doc.setFontSize(10);
-      doc.text('RINGKASAN MINGGUAN', margin, finalY);
+      
+      doc.setFont("helvetica", "bold");
+      doc.text("RINGKASAN MINGGUAN", margin, currentY);
+      currentY += 2;
+      
+      const weeklyWidth = doc.getTextWidth("RINGKASAN MINGGUAN");
+      doc.setLineWidth(0.3);
+      doc.line(margin, currentY, margin + weeklyWidth, currentY);
+      currentY += 8;
       
       const weeklyTableData = reportData.weeklyData.map(week => [
         week.minggu,
         formatCurrency(week.pendapatan),
         formatCurrency(week.keuntungan),
-        week.transaksi.toString()
+        formatNumber(week.transaksi),
+        week.transaksi > 0 ? formatCurrency(week.pendapatan / week.transaksi) : formatCurrency(0)
       ]);
       
       autoTable(doc, {
-        startY: finalY + 3,
-        head: [['Periode', 'Pendapatan', 'Keuntungan', 'Transaksi']],
+        startY: currentY,
+        head: [['Periode', 'Pendapatan', 'Keuntungan', 'Transaksi', 'Rata-rata']],
         body: weeklyTableData,
-        theme: 'striped',
-        headStyles: { 
-          fillColor: [252, 138, 6],
-          textColor: [255, 255, 255],
-          fontSize: 9
+        theme: 'plain',
+        styles: {
+          font: "helvetica",
+          fontSize: 9,
+          lineColor: [0, 0, 0],
+          lineWidth: 0.1
         },
-        bodyStyles: { fontSize: 8, cellPadding: 2 },
-        margin: { left: margin, right: margin },
-        columnStyles: { 0: { cellWidth: 30 }, 3: { cellWidth: 20 } }
+        headStyles: {
+          fillColor: [255, 255, 255],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold'
+        },
+        bodyStyles: {
+          textColor: [0, 0, 0]
+        },
+        columnStyles: {
+          0: { halign: 'left', cellWidth: 40 },
+          1: { halign: 'right', cellWidth: 35 },
+          2: { halign: 'right', cellWidth: 35 },
+          3: { halign: 'center', cellWidth: 25 },
+          4: { halign: 'right', cellWidth: 35 }
+        },
+        margin: { left: margin, right: margin }
       });
-      finalY = doc.lastAutoTable.finalY + 8; // Kurangi spacing
+      
+      currentY = doc.lastAutoTable.finalY + 15;
     }
 
-    // Annual Sales Insights
+    // Annual Insights Section
     if (Array.isArray(annualReportData.monthlySummary) && annualReportData.monthlySummary.length > 0) {
-      if (finalY + 70 > pageHeight - 20) {
+      if (currentY + 70 > pageHeight - 20) {
         doc.addPage();
-        finalY = 15;
+        currentY = 20;
       }
-      doc.setFontSize(10);
-      doc.text(`INSIGHT TAHUNAN ${selectedYear}`, margin, finalY);
+      
+      doc.setFont("helvetica", "bold");
+      doc.text(`INSIGHT TAHUNAN ${selectedYear}`, margin, currentY);
+      currentY += 2;
+      
+      const insightWidth = doc.getTextWidth(`INSIGHT TAHUNAN ${selectedYear}`);
+      doc.setLineWidth(0.3);
+      doc.line(margin, currentY, margin + insightWidth, currentY);
+      currentY += 8;
       
       // Monthly Summary Table
       const monthlyTableData = annualReportData.monthlySummary.map(item => [
@@ -121,169 +222,176 @@ const CetakLaporanBulanan = ({ reportData, annualReportData, selectedMonth, sele
       ]);
       
       autoTable(doc, {
-        startY: finalY + 3,
-        head: [['Bulan', 'Terjual', 'Pendapatan', 'Transaksi', 'Rata-rata']],
+        startY: currentY,
+        head: [['Bulan', 'Jumlah Barang Terjual', 'Jumlah Penjualan Kotor', 'Jumlah Transaksi', 'Rata-rata']],
         body: monthlyTableData,
-        theme: 'striped',
-        headStyles: { 
-          fillColor: [2, 134, 67],
-          textColor: [255, 255, 255],
-          fontSize: 9
+        theme: 'plain',
+        styles: {
+          font: "helvetica",
+          fontSize: 9,
+          lineColor: [0, 0, 0],
+          lineWidth: 0.1
         },
-        bodyStyles: { fontSize: 8, cellPadding: 2 },
-        margin: { left: margin, right: margin },
-        columnStyles: { 
-          0: { cellWidth: 20 }, 
-          1: { cellWidth: 20 }, 
-          3: { cellWidth: 20 }, 
-          4: { cellWidth: 40 }
-        }
+        headStyles: {
+          fillColor: [255, 255, 255],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold'
+        },
+        bodyStyles: {
+          textColor: [0, 0, 0]
+        },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 20 },
+          1: { halign: 'right', cellWidth: 25 },
+          2: { halign: 'right', cellWidth: 40 },
+          3: { halign: 'center', cellWidth: 25 },
+          4: { halign: 'right', cellWidth: 40 }
+        },
+        margin: { left: margin, right: margin }
       });
       
-      finalY = doc.lastAutoTable.finalY + 8; // Kurangi spacing
+      currentY = doc.lastAutoTable.finalY + 15;
 
-      // Chart Configuration
+      // Charts Section
       const chartWidth = pageWidth - (margin * 2);
-      const chartHeight = 45; // Tinggi chart lebih konsisten
-      const barWidth = chartWidth / 12 / 1.3;
+      const chartHeight = 50;
+      const barWidth = (chartWidth - 20) / 12;
 
       // Bar Chart for Monthly Item Sales
-      if (finalY + chartHeight + 20 > pageHeight - 20) {
+      if (currentY + chartHeight + 30 > pageHeight - 20) {
         doc.addPage();
-        finalY = 15;
+        currentY = 20;
       }
       
-      // Title dengan spacing yang lebih baik
-      doc.setFontSize(10);
-      doc.setTextColor(3, 8, 31);
-      doc.text('BARANG TERJUAL PER BULAN', margin, finalY);
-      finalY += 8; // Spacing antara title dan chart
+      doc.setFont("helvetica", "bold");
+      doc.text("GRAFIK BARANG TERJUAL PER BULAN", margin, currentY);
+      currentY += 2;
+      
+      const chartTitleWidth = doc.getTextWidth("GRAFIK BARANG TERJUAL PER BULAN");
+      doc.setLineWidth(0.3);
+      doc.line(margin, currentY, margin + chartTitleWidth, currentY);
+      currentY += 10;
 
       const maxItems = Math.max(...annualReportData.monthlyItemSales.map(item => item.itemSold), 1);
       const yScaleItems = chartHeight / maxItems;
+      const chartStartY = currentY;
 
-      // Chart background
-      doc.setFillColor(249, 249, 249);
-      doc.rect(margin, finalY, chartWidth, chartHeight, 'F');
-
-      // Draw axes
-      doc.setDrawColor(3, 8, 31);
+      // Chart border
+      doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.5);
-      doc.line(margin, finalY + chartHeight, margin, finalY); // Y-axis
-      doc.line(margin, finalY + chartHeight, margin + chartWidth, finalY + chartHeight); // X-axis
+      doc.rect(margin, chartStartY, chartWidth, chartHeight);
 
       // Draw bars and labels
       annualReportData.monthlyItemSales.forEach((item, index) => {
-        const x = margin + index * (barWidth * 1.3) + 8; // Lebih center
+        const x = margin + 10 + index * barWidth;
         const barHeight = item.itemSold * yScaleItems;
         
-        // Bar dengan gradient effect
-        doc.setFillColor(2, 134, 67);
+        // Bar
+        doc.setFillColor(100, 100, 100);
         if (barHeight > 0) {
-          doc.rect(x, finalY + chartHeight - barHeight, barWidth, barHeight, 'F');
+          doc.rect(x, chartStartY + chartHeight - barHeight, barWidth * 0.8, barHeight, 'F');
         }
         
         // X-axis labels
         doc.setFontSize(7);
-        doc.setTextColor(3, 8, 31);
-        doc.text(item.bulan.substring(0, 3), x + barWidth / 2, finalY + chartHeight + 6, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+        doc.text(item.bulan.substring(0, 3), x + (barWidth * 0.4), chartStartY + chartHeight + 6, { align: 'center' });
         
         // Bar value labels
         if (item.itemSold > 0) {
           doc.setFontSize(6);
-          doc.setTextColor(255, 255, 255);
-          doc.text(formatNumber(item.itemSold), x + barWidth / 2, finalY + chartHeight - barHeight / 2, { align: 'center' });
+          doc.text(formatNumber(item.itemSold), x + (barWidth * 0.4), chartStartY + chartHeight - barHeight - 2, { align: 'center' });
         }
       });
 
-      // Y-axis labels dengan format yang lebih baik
-      const yTicksItems = [0, Math.ceil(maxItems / 2), maxItems];
-      yTicksItems.forEach(tick => {
-        const y = finalY + chartHeight - (tick * yScaleItems);
+      // Y-axis labels
+      const yTicks = [0, Math.ceil(maxItems / 2), maxItems];
+      yTicks.forEach(tick => {
+        const y = chartStartY + chartHeight - (tick * yScaleItems);
         doc.setFontSize(7);
-        doc.setTextColor(3, 8, 31);
-        doc.text(formatNumber(tick), margin - 3, y + 1, { align: 'right' });
+        doc.text(formatNumber(tick), margin - 2, y + 1, { align: 'right' });
+        // Grid lines
         doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.3);
-        doc.line(margin, y, margin + chartWidth, y); // Grid line
+        doc.setLineWidth(0.2);
+        doc.line(margin, y, margin + chartWidth, y);
       });
 
-      finalY += chartHeight + 12; // Spacing setelah chart
+      currentY = chartStartY + chartHeight + 20;
 
       // Bar Chart for Monthly Revenue
-      if (finalY + chartHeight + 20 > pageHeight - 20) {
+      if (currentY + chartHeight + 30 > pageHeight - 20) {
         doc.addPage();
-        finalY = 15;
+        currentY = 20;
       }
       
-      doc.setFontSize(10);
-      doc.setTextColor(3, 8, 31);
-      doc.text('PENDAPATAN PER BULAN', margin, finalY);
-      finalY += 8;
+      doc.setFont("helvetica", "bold");
+      doc.text("GRAFIK PENDAPATAN PER BULAN", margin, currentY);
+      currentY += 2;
+      
+      const revChartTitleWidth = doc.getTextWidth("GRAFIK PENDAPATAN PER BULAN");
+      doc.setLineWidth(0.3);
+      doc.line(margin, currentY, margin + revChartTitleWidth, currentY);
+      currentY += 10;
 
       const maxRevenue = Math.max(...annualReportData.monthlyItemSales.map(item => item.totalPendapatan), 1);
       const yScaleRevenue = chartHeight / maxRevenue;
+      const revenueChartStartY = currentY;
 
-      // Chart background
-      doc.setFillColor(249, 249, 249);
-      doc.rect(margin, finalY, chartWidth, chartHeight, 'F');
-
-      // Draw axes
-      doc.setDrawColor(3, 8, 31);
+      // Chart border
+      doc.setDrawColor(0, 0, 0);
       doc.setLineWidth(0.5);
-      doc.line(margin, finalY + chartHeight, margin, finalY); // Y-axis
-      doc.line(margin, finalY + chartHeight, margin + chartWidth, finalY + chartHeight); // X-axis
+      doc.rect(margin, revenueChartStartY, chartWidth, chartHeight);
 
       // Draw bars and labels
       annualReportData.monthlyItemSales.forEach((item, index) => {
-        const x = margin + index * (barWidth * 1.3) + 8;
+        const x = margin + 10 + index * barWidth;
         const barHeight = item.totalPendapatan * yScaleRevenue;
         
-        // Bar dengan warna yang lebih menarik
-        doc.setFillColor(252, 138, 6);
+        // Bar
+        doc.setFillColor(150, 150, 150);
         if (barHeight > 0) {
-          doc.rect(x, finalY + chartHeight - barHeight, barWidth, barHeight, 'F');
+          doc.rect(x, revenueChartStartY + chartHeight - barHeight, barWidth * 0.8, barHeight, 'F');
         }
         
         // X-axis labels
         doc.setFontSize(7);
-        doc.setTextColor(3, 8, 31);
-        doc.text(item.bulan.substring(0, 3), x + barWidth / 2, finalY + chartHeight + 6, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+        doc.text(item.bulan.substring(0, 3), x + (barWidth * 0.4), revenueChartStartY + chartHeight + 6, { align: 'center' });
         
         // Bar value labels
         if (item.totalPendapatan > 0) {
           doc.setFontSize(6);
-          doc.setTextColor(255, 255, 255);
-          const value = item.totalPendapatan / 1000000; // Convert to millions
+          const value = item.totalPendapatan / 1000000;
           const label = value >= 1 ? `${value.toFixed(1)}M` : `${(value * 1000).toFixed(0)}K`;
-          doc.text(label, x + barWidth / 2, finalY + chartHeight - barHeight / 2, { align: 'center' });
+          doc.text(label, x + (barWidth * 0.4), revenueChartStartY + chartHeight - barHeight - 2, { align: 'center' });
         }
       });
 
-      // Y-axis labels dengan format yang lebih baik
+      // Y-axis labels
       const yTicksRevenue = [0, Math.ceil(maxRevenue / 2), maxRevenue];
       yTicksRevenue.forEach(tick => {
-        const y = finalY + chartHeight - (tick * yScaleRevenue);
+        const y = revenueChartStartY + chartHeight - (tick * yScaleRevenue);
         doc.setFontSize(7);
-        doc.setTextColor(3, 8, 31);
         const tickValue = tick / 1000000;
         const tickLabel = tickValue >= 1 ? `${tickValue.toFixed(1)}M` : `${(tickValue * 1000).toFixed(0)}K`;
-        doc.text(tickLabel, margin - 3, y + 1, { align: 'right' });
+        doc.text(tickLabel, margin - 2, y + 1, { align: 'right' });
+        // Grid lines
         doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.3);
-        doc.line(margin, y, margin + chartWidth, y); // Grid line
+        doc.setLineWidth(0.2);
+        doc.line(margin, y, margin + chartWidth, y);
       });
 
-      finalY += chartHeight + 8;
+      currentY = revenueChartStartY + chartHeight + 15;
     }
     
     // Footer
     const footerY = pageHeight - 10;
     doc.setFontSize(8);
-    doc.setTextColor(128, 128, 128);
-    doc.text(`Dibuat: ${new Date().toLocaleDateString('id-ID')}`, margin, footerY);
-    doc.text('ReuseMart', pageWidth - margin, footerY, { align: 'right' });
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Dicetak pada: ${formatDateLong(new Date())}`, margin, footerY);
+    doc.text('ReuseMart - Sistem Laporan', pageWidth - margin, footerY, { align: 'right' });
 
+    // Save PDF
     doc.save(`Laporan-Penjualan-${months[selectedMonth - 1]}-${selectedYear}.pdf`);
     setShowModal(false);
   };

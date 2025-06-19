@@ -2,217 +2,252 @@ import React from 'react';
 import { Button } from 'react-bootstrap';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import PropTypes from 'prop-types';
 
 const CetakLaporanStokGudang = ({ summaryData, filteredData, formatCurrency, formatNumber, formatWeight, getStatusBadge, statusColors, colors }) => {
-  const formatDate = (date) => {
-    return date ? new Date(date).toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
-    }) : '-';
+  const formatDateShort = (tgl) => {
+    if (!tgl) return '-';
+    let date;
+    try {
+      if (typeof tgl === 'string' && tgl.includes('/')) {
+        const [day, month, year] = tgl.split('/');
+        date = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+      } else {
+        date = new Date(tgl);
+      }
+      if (isNaN(date.getTime())) return 'Tanggal tidak valid';
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    } catch {
+      return 'Tanggal tidak valid';
+    }
+  };
+
+  const formatDateLong = (tgl) => {
+    if (!tgl) return '-';
+    let date;
+    try {
+      if (typeof tgl === 'string' && tgl.includes('/')) {
+        const [day, month, year] = tgl.split('/');
+        date = new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`);
+      } else {
+        date = new Date(tgl);
+      }
+      if (isNaN(date.getTime())) return 'Tanggal tidak valid';
+      return date.toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+    } catch {
+      return 'Tanggal tidak valid';
+    }
   };
 
   const generatePDF = () => {
-    const doc = new jsPDF({ 
+    const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
-      format: 'a4'
+      format: 'a4',
     });
-    
-    const pageWidth = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
-    const margin = 15;
 
-    // Brand Colors
-    const primaryColor = [2, 134, 67];
-    const secondaryColor = [3, 8, 31];
-    const lightGray = [245, 245, 245];
-    const borderColor = [200, 200, 200];
-
-    // Header Section
-    doc.setFontSize(22);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...primaryColor);
-    doc.text('LAPORAN STOK GUDANG REUSEMART', pageWidth / 2, 25, { align: 'center' });
-    
-    // Subtitle
+    // Header
     doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...secondaryColor);
-    doc.text(`Periode: ${new Date().toLocaleDateString('id-ID', { 
-      day: '2-digit', 
-      month: 'long', 
-      year: 'numeric' 
-    })}`, pageWidth / 2, 35, { align: 'center' });
-
-    // Divider line
-    doc.setDrawColor(...primaryColor);
-    doc.setLineWidth(0.8);
-    doc.line(margin, 40, pageWidth - margin, 40);
-
-    // Summary Section dengan design yang lebih modern
-    const summaryY = 50;
-    const summaryHeight = 45;
-    
-    // Background untuk summary
-    doc.setFillColor(...lightGray);
-    doc.setDrawColor(...borderColor);
-    doc.setLineWidth(0.3);
-    doc.roundedRect(margin, summaryY, pageWidth - (margin * 2), summaryHeight, 3, 3, 'FD');
-    
-    // Title summary
-    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...primaryColor);
-    doc.text('RINGKASAN BARANG', margin + 10, summaryY + 12);
-    
-    // Summary content dalam 2 kolom
-    doc.setFontSize(10);
+    doc.text('ReUse Mart', 14, 10);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(...secondaryColor);
-    
-    const col1X = margin + 10;
-    const col2X = pageWidth / 2 + 10;
-    const summaryLineHeight = 8;
-    
-    // Kolom 1
-    doc.text(`Total Barang: ${formatNumber(summaryData.totalPenitipan)} item`, col1X, summaryY + 25);
-    doc.text(`Total Nilai Stok: ${formatCurrency(summaryData.totalNilaiStok)}`, col1X, summaryY + 25 + summaryLineHeight);
-    
-    // Kolom 2
-    doc.text(`Total Berat Stok: ${formatWeight(summaryData.totalBeratStok)}`, col2X, summaryY + 25);
-    doc.text(`Penitipan Perpanjangan: ${formatNumber(summaryData.penitipanPerpanjangan)} item`, col2X, summaryY + 25 + summaryLineHeight);
+    doc.text('Jl. Green Eco Park No. 456 Yogyakarta', 14, 16);
 
-    // Detail Table Section
-    if (Array.isArray(filteredData) && filteredData.length > 0) {
-      const tableStartY = summaryY + summaryHeight + 20;
-      
-      // Table title
-      doc.setFontSize(14);
+    // Title with underline
+    doc.setFont('helvetica', 'bold');
+    const title = 'LAPORAN STOK GUDANG - DALAM MASA PENITIPAN';
+    const titleX = 14;
+    const titleY = 26;
+    doc.text(title, titleX, titleY);
+    const textWidth = doc.getTextWidth(title);
+    doc.setLineWidth(0.5);
+    doc.line(titleX, titleY + 1, titleX + textWidth, titleY + 1);
+
+    // Period and print date
+    doc.setFont('helvetica', 'normal');
+    const currentDate = new Date();
+    doc.text(`Periode: ${formatDateLong(currentDate)}`, 14, 32);
+    doc.text(`Tanggal Cetak: ${formatDateLong(currentDate)}`, 14, 38);
+
+    // Summary table
+    const summaryTableData = [
+      ['Total Barang', `${formatNumber(summaryData.totalPenitipan)} item`],
+      ['Total Nilai Stok', formatCurrency(summaryData.totalNilaiStok)],
+      ['Total Berat Stok', formatWeight(summaryData.totalBeratStok)],
+      ['Penitipan Perpanjangan', `${formatNumber(summaryData.penitipanPerpanjangan)} item`],
+    ];
+
+    autoTable(doc, {
+      startY: 45,
+      head: [['Keterangan', 'Nilai']],
+      body: summaryTableData,
+      theme: 'grid',
+      styles: {
+        font: 'helvetica',
+        fontSize: 10,
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1,
+        cellPadding: 2,
+      },
+      headStyles: {
+        fillColor: [2, 134, 67], // Match colors.primary (#028643)
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+      },
+      bodyStyles: {
+        textColor: [0, 0, 0],
+      },
+      columnStyles: {
+        0: { cellWidth: 100 },
+        1: { cellWidth: 100, halign: 'right' },
+      },
+    });
+
+    let currentY = doc.lastAutoTable.finalY + 10;
+
+    // Detail Barang
+    const dalamMasaPenitipanData = filteredData.filter(
+      (item) => item.status_penitipan === 'Dalam masa penitipan'
+    );
+
+    if (dalamMasaPenitipanData.length > 0) {
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(...primaryColor);
-      doc.text('DETAIL BARANG', margin, tableStartY - 5);
-      
-      const tableData = filteredData.map((item, index) => [
-        (index + 1).toString(), // No urut
+      doc.text('DETAIL BARANG DALAM MASA PENITIPAN', 14, currentY);
+      currentY += 5;
+
+      const tableData = dalamMasaPenitipanData.map((item, index) => [
+        (index + 1).toString(),
         item.Barang?.id_barang || '-',
         item.Barang?.nama || '-',
         item.Barang?.Penitip?.id_penitip || '-',
         item.Barang?.Penitip?.nama_penitip || '-',
-        formatDate(item.tanggal_awal_penitipan),
+        formatDateShort(item.tanggal_awal_penitipan),
         item.perpanjangan ? 'Ya' : 'Tidak',
         item.Barang?.Hunter?.nama_pegawai || '-',
-        formatCurrency(item.Barang?.harga || 0)
+        formatCurrency(item.Barang?.harga || 0),
       ]);
-      
+
       autoTable(doc, {
-        startY: tableStartY,
+        startY: currentY,
         head: [
           [
             'No',
             'Kode Produk',
             'Nama Produk',
-            'ID Penitip', 
+            'ID Penitip',
             'Nama Penitip',
             'Tanggal Masuk',
             'Perpanjangan',
             'Hunter',
-            'Harga (Rp)'
-          ]
+            'Harga',
+          ],
         ],
         body: tableData,
         theme: 'grid',
-        headStyles: { 
-          fillColor: primaryColor,
+        styles: {
+          font: 'helvetica',
+          fontSize: 9,
+          lineColor: [0, 0, 0],
+          lineWidth: 0.1,
+          cellPadding: 2,
+        },
+        headStyles: {
+          fillColor: [2, 134, 67],
           textColor: [255, 255, 255],
-          fontSize: 10,
           fontStyle: 'bold',
-          halign: 'center',
-          valign: 'middle',
-          cellPadding: { top: 6, right: 4, bottom: 6, left: 4 }
         },
         bodyStyles: {
-          fontSize: 9,
-          cellPadding: { top: 5, right: 4, bottom: 5, left: 4 },
-          valign: 'middle',
-          textColor: secondaryColor
-        },
-        alternateRowStyles: {
-          fillColor: [250, 250, 250]
-        },
-        margin: { 
-          left: margin, 
-          right: margin,
-          top: 10,
-          bottom: 30
+          textColor: [0, 0, 0],
         },
         columnStyles: {
-          0: { cellWidth: 12, halign: 'center' }, // No
-          1: { cellWidth: 25, halign: 'center' }, // Kode Produk
-          2: { cellWidth: 45, halign: 'left' },   // Nama Produk
-          3: { cellWidth: 20, halign: 'center' }, // ID Penitip
-          4: { cellWidth: 35, halign: 'left' },   // Nama Penitip
-          5: { cellWidth: 30, halign: 'center' }, // Tanggal
-          6: { cellWidth: 20, halign: 'center' }, // Perpanjangan
-          7: { cellWidth: 30, halign: 'left' },   // Hunter
-          8: { cellWidth: 30, halign: 'right' }   // Harga
+          0: { cellWidth: 12, halign: 'center' },
+          1: { cellWidth: 25, halign: 'center' },
+          2: { cellWidth: 45 },
+          3: { cellWidth: 20, halign: 'center' },
+          4: { cellWidth: 35 },
+          5: { cellWidth: 30, halign: 'center' },
+          6: { cellWidth: 20, halign: 'center' },
+          7: { cellWidth: 30 },
+          8: { cellWidth: 30, halign: 'right' },
         },
-        tableLineColor: borderColor,
-        tableLineWidth: 0.3,
-        didDrawCell: (data) => {
-          // Highlight perpanjangan "Ya"
-          if (data.column.index === 6 && data.cell.text[0] === 'Ya') {
-            doc.setFillColor(255, 235, 59);
-            doc.setDrawColor(...borderColor);
-            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
-            doc.setTextColor(...secondaryColor);
-            doc.setFontSize(9);
-            doc.text('Ya', data.cell.x + data.cell.width/2, data.cell.y + data.cell.height/2 + 2, { align: 'center' });
-          }
-        }
       });
+    } else {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text('Tidak ada barang dengan status "Dalam masa penitipan" untuk periode ini.', 14, currentY);
     }
 
-    // Footer dengan design yang lebih baik
-    const footerY = pageHeight - 15;
-    
-    // Footer background
-    doc.setFillColor(...lightGray);
-    doc.setDrawColor(...borderColor);
-    doc.setLineWidth(0.3);
-    doc.rect(margin, footerY - 8, pageWidth - (margin * 2), 12, 'FD');
-    
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(100, 100, 100);
-    
-    const currentDate = new Date().toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: 'long', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-    
-    doc.text(`Laporan dibuat pada: ${currentDate}`, margin + 5, footerY - 2);
-    doc.text('ReuseMart - Sistem Manajemen Penitipan Gudang', pageWidth - margin - 5, footerY - 2, { align: 'right' });
-    
-    // Page number
-    doc.text(`Halaman 1`, pageWidth / 2, footerY - 2, { align: 'center' });
-    
-    // Save PDF dengan nama yang lebih descriptive
-    const fileName = `Laporan-Penitipan-Gudang-${new Date().toLocaleDateString('id-ID').replace(/\//g, '-')}.pdf`;
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Halaman ${i} dari ${pageCount}`, doc.internal.pageSize.width - 30, doc.internal.pageSize.height - 10);
+      doc.text(`Laporan Stok Gudang - Dalam Masa Penitipan`, 14, doc.internal.pageSize.height - 10);
+    }
+
+    const fileName = `LaporanStokGudang_DalamMasaPenitipan_${currentDate.toLocaleDateString('id-ID').replace(/\//g, '-')}.pdf`;
     doc.save(fileName);
   };
 
   return (
-    <Button 
+    <Button
       onClick={generatePDF}
       className="view-btn"
+      aria-label="Ekspor laporan stok gudang ke PDF"
     >
       Export PDF
     </Button>
   );
+};
+
+CetakLaporanStokGudang.propTypes = {
+  summaryData: PropTypes.shape({
+    totalPenitipan: PropTypes.number,
+    totalNilaiStok: PropTypes.number,
+    totalBeratStok: PropTypes.number,
+    penitipanPerpanjangan: PropTypes.number,
+  }).isRequired,
+  filteredData: PropTypes.arrayOf(
+    PropTypes.shape({
+      Barang: PropTypes.shape({
+        id_barang: PropTypes.string,
+        nama: PropTypes.string,
+        harga: PropTypes.number,
+        Penitip: PropTypes.shape({
+          id_penitip: PropTypes.string,
+          nama_penitip: PropTypes.string,
+        }),
+        Hunter: PropTypes.shape({
+          nama_pegawai: PropTypes.string,
+        }),
+      }),
+      tanggal_awal_penitipan: PropTypes.oneOfType([PropTypes.string, PropTypes.instanceOf(Date)]),
+      perpanjangan: PropTypes.bool,
+      status_penitipan: PropTypes.string,
+    })
+  ).isRequired,
+  formatCurrency: PropTypes.func.isRequired,
+  formatNumber: PropTypes.func.isRequired,
+  formatWeight: PropTypes.func.isRequired,
+  getStatusBadge: PropTypes.func.isRequired,
+  statusColors: PropTypes.object.isRequired,
+  colors: PropTypes.shape({
+    primary: PropTypes.string,
+    secondary: PropTypes.string,
+    white: PropTypes.string,
+    dark: PropTypes.string,
+    gray: PropTypes.string,
+    muted: PropTypes.string,
+  }).isRequired,
 };
 
 export default CetakLaporanStokGudang;

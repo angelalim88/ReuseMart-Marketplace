@@ -65,6 +65,7 @@ const LaporanStokGudang = () => {
     setLoading(true);
     try {
       const response = await GetAllPenitipan();
+      console.log(response.data);
       const data = response.data || [];
       setPenitipanData(data);
       processSummaryData(data);

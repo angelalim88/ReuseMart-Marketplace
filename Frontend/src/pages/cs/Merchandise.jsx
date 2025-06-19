@@ -321,7 +321,7 @@ const KelolaMerchandisePage = () => {
         <Row className="mb-4 align-items-center">
           <Col>
             <h2 className="page-title">Kelola Claim Merchandise</h2>
-            <p className="page-subtitle">Kelola dan proses claim merchandise dari pembeli</p>
+            <p className="page-subtitle">Kelola dan proses claim merchanise dari pembeli</p>
           </Col>
         </Row>
 

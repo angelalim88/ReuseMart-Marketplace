@@ -30,8 +30,7 @@ export const CetakLaporanRequest = async () => {
         if (request.data && Array.isArray(request.data)) {
             const filtered = request.data.filter(
                 (r) =>
-                    r.status_request === "Diterima" &&
-                    (!r.DonasiBarang)
+                    (r.status_request === "Diterima" && (!r.DonasiBarang)) || r.status_request === "Menunggu konfirmasi"
             );
 
             const doc = new jsPDF();
