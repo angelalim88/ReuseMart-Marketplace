@@ -12,7 +12,9 @@ import CetakNotaPengambilan from '../../components/pdf/CetakNotaPengambilan';
 import TransaksiCard from '../../components/card/CardListPengambilan';
 import { UpdatePengirimanStatus } from '../../clients/PengirimanService';
 import { UpdateStatusPenitipan, GetPenitipanByStatus, GetPenitipanByIdBarang, SchedulePenitipanPickup, ConfirmPenitipanPickup, UpdatePenitipan } from '../../clients/PenitipanService';
+import { UpdateKeuntunganPenitip } from '../../clients/PenitipService';
 import { CreateTransaksi } from '../../clients/TransaksiService'; // Add this
+import { UpdatePoinPembeli } from '../../clients/PembeliService';
 
 const Pengambilan = () => {
   const [transaksiList, setTransaksiList] = useState([]);
@@ -127,30 +129,62 @@ const Pengambilan = () => {
               jenis_pengiriman: 'Ambil di gudang',
             };
             console.log(`UpdatePengirimanStatus payload for ${transaksi.pengiriman.id_pengiriman}:`, payload);
-            await UpdatePengirimanStatus(transaksi.pengiriman.id_pengiriman, payload);
+            await UpdatePengirimanStatus(transaksi.pengiriman.idppen_pengiriman, payload);
             console.log(`Updated Pengiriman status to Hangus for ${transaksi.id_pembelian}`);
           } catch (err) {
             console.error(`Failed to update Pengiriman for ${transaksi.id_pembelian}:`, err.message, err.response?.data);
             throw err; // Stop further processing if Pengiriman update fails
         }
 
-        // Update Penitipan status to "Menunggu didonasikan" for each barang
+        // Create Transaksi for each barang
         for (const barang of transaksi.barang) {
           if (barang.id_penitip) {
             try {
-              const penitipanResponse = await GetPenitipanByIdBarang(barang.id_barang);
-              console.log(`Penitipan response for barang ${barang.id_barang}:`, penitipanResponse.data);
-              const id_penitipan = penitipanResponse.data.id_penitipan;
-              if (!id_penitipan) throw new Error(`Penitipan not found for barang ${barang.id_barang}`);
-              await UpdateStatusPenitipan(id_penitipan, 'Menunggu didonasikan');
-              console.log(`Updated Penitipan for barang: ${barang.id_barang}`);
+              const id_sub_pembelian = barang.id_sub_pembelian;
+              if (!id_sub_pembelian) throw new Error(`SubPembelian not found for barang ${barang.id_barang}`);
+
+              const penitipan = barang.Penitipan;
+              if (!penitipan) throw new Error(`Penitipan not found for barang ${barang.id_barang}`);
+
+              const harga = parseFloat(barang.harga);
+              let komisi_reusemart_percent = penitipan.perpanjangan ? 0.25 : 0.20;
+              let komisi_reusemart = harga * komisi_reusemart_percent;
+              let komisi_hunter = barang.id_hunter ? harga * 0.05 : 0;
+              if (komisi_hunter > 0) komisi_reusemart -= komisi_hunter;
+
+              const saleDate = new Date(transaksi.tanggal_pembelian);
+              const penitipanDate = new Date(penitipan.tanggal_awal_penitipan);
+              const daysDiff = (saleDate - penitipanDate) / (1000 * 60 * 60 * 24);
+              let bonus_cepat = daysDiff < 7 ? harga * 0.10 * komisi_reusemart_percent : 0;
+              if (bonus_cepat > 0) komisi_reusemart -= bonus_cepat;
+
+              const pendapatan = harga - komisi_reusemart - komisi_hunter;
+
+              const transaksiPayload = {
+                id_sub_pembelian,
+                komisi_reusemart,
+                komisi_hunter: komisi_hunter != null ? komisi_hunter : 0,
+                pendapatan,
+                bonus_cepat: bonus_cepat != null ? bonus_cepat : 0,
+              };
+              
+              console.log(`Creating Transaksi for barang ${barang.id_barang}:`, transaksiPayload);
+              await CreateTransaksi(transaksiPayload);
+              console.log(`Created Transaksi for barang ${barang.id_barang}, id_sub_pembelian: ${id_sub_pembelian}`);
+              
+              // 🔥 TAMBAHKAN KODE INI UNTUK UPDATE SALDO PENITIP
+              const totalKeuntunganPenitip = pendapatan + (bonus_cepat || 0);
+              await UpdateKeuntunganPenitip(barang.id_penitip, totalKeuntunganPenitip);
+              console.log(`Updated keuntungan for penitip ${barang.id_penitip}: +${totalKeuntunganPenitip}`);
+              
             } catch (err) {
-              console.error(`Failed to update Penitipan for barang ${barang.id_barang}:`, err.message);
+              console.error(`Failed to create Transaksi for barang ${barang.id_barang}:`, err.message, err.response);
+              showNotification(`Gagal membuat transaksi untuk barang ${barang.nama}!`, 'danger');
             }
-          } else {
-            console.log(`No id_penitip for barang: ${barang.id_barang}, skipping Penitipan update`);
           }
         }
+
+
       }
 
       // Refresh data after updates
@@ -349,7 +383,7 @@ const Pengambilan = () => {
       const today = new Date().toISOString();
 
       if (transaksi.type === 'penitipan') {
-        // Untuk penitipan, langsung update status penitipan menggunakan UpdatePenitipan yang sudah ada
+        // Logic untuk penitipan tetap sama
         await UpdatePenitipan(transaksi.id_penitipan, {
           status_penitipan: 'Sudah diambil kembali penitip'
         });
@@ -375,7 +409,7 @@ const Pengambilan = () => {
 
         showNotification('Penitipan berhasil dikonfirmasi diambil kembali!', 'success');
       } else {
-        // Logic untuk pembelian (kode asli)
+        // Logic untuk pembelian
         const updatedStatus = 'Sudah diambil pembeli';
 
         // Update Pengiriman status
@@ -419,14 +453,41 @@ const Pengambilan = () => {
                 pendapatan,
                 bonus_cepat: bonus_cepat != null ? bonus_cepat : 0,
               };
+              
               console.log(`Creating Transaksi for barang ${barang.id_barang}:`, transaksiPayload);
               await CreateTransaksi(transaksiPayload);
               console.log(`Created Transaksi for barang ${barang.id_barang}, id_sub_pembelian: ${id_sub_pembelian}`);
+              
+              // 🔥 UPDATE SALDO PENITIP
+              const totalKeuntunganPenitip = pendapatan + (bonus_cepat || 0);
+              await UpdateKeuntunganPenitip(barang.id_penitip, totalKeuntunganPenitip);
+              console.log(`Updated keuntungan for penitip ${barang.id_penitip}: +${totalKeuntunganPenitip}`);
+              
             } catch (err) {
               console.error(`Failed to create Transaksi for barang ${barang.id_barang}:`, err.message, err.response);
               showNotification(`Gagal membuat transaksi untuk barang ${barang.nama}!`, 'danger');
             }
           }
+        }
+
+        // 🔥 TAMBAHKAN POIN PEMBELI SETELAH SEMUA TRANSAKSI BERHASIL
+        try {
+          // Hitung total harga barang (tanpa ongkir)
+          const totalHargaBarang = transaksi.barang.reduce((total, barang) => {
+            return total + parseFloat(barang.harga || 0);
+          }, 0);
+
+          // Hitung poin yang didapat
+          const poinDidapat = calculatePoinPembeli(totalHargaBarang);
+
+          if (poinDidapat > 0) {
+            await UpdatePoinPembeli(transaksi.id_pembeli, poinDidapat);
+            console.log(`Updated poin for pembeli ${transaksi.id_pembeli}: +${poinDidapat} poin`);
+            showNotification(`Pembeli mendapat ${poinDidapat} poin loyalitas!`, 'success');
+          }
+        } catch (poinError) {
+          console.error('Error updating poin pembeli:', poinError);
+          showNotification('Transaksi berhasil, namun gagal menambah poin pembeli!', 'warning');
         }
 
         // Update filteredTransaksi untuk pembelian
@@ -594,6 +655,23 @@ const Pengambilan = () => {
     setStartDate('');
     setEndDate('');
   };
+
+  // Fungsi untuk menghitung poin pembeli berdasarkan total pembelian
+  const calculatePoinPembeli = (totalHargaBarang) => {
+    const harga = parseFloat(totalHargaBarang);
+    
+    // Base poin: tiap 10.000 dapat 1 poin
+    let basePoin = Math.floor(harga / 10000);
+    
+    // Bonus 20% jika pembelian di atas 500.000
+    if (harga > 500000) {
+      const bonusPoin = Math.floor(basePoin * 0.20);
+      basePoin += bonusPoin;
+    }
+    
+    return basePoin;
+  };
+
 
   return (
     <Container fluid className="p-0 bg-white">

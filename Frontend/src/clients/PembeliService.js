@@ -27,3 +27,23 @@ export const apiPembeli = {
         return response.data;
     }
 };
+
+export const UpdatePoinPembeli = async (id_pembeli, tambahan_poin) => {
+  try {
+    // Ambil data pembeli saat ini
+    const currentPembeli = await apiPembeli.getPembeliById(id_pembeli);
+    const currentPoin = parseInt(currentPembeli.pembeli.total_poin || 0);
+    
+    // Hitung poin baru
+    const newPoin = currentPoin + parseInt(tambahan_poin);
+    
+    // Update poin pembeli menggunakan endpoint khusus
+    const response = await apiClient.put(ENDPOINTS.UPDATE_POIN_PEMBELI(id_pembeli), { 
+      total_poin: newPoin 
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating poin pembeli:', error);
+    throw error;
+  }
+};

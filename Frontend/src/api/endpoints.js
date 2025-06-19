@@ -29,6 +29,7 @@ export const ENDPOINTS = {
     UPDATE_PEMBELI: (id) => `/pembeli/${id}`,
     DELETE_PEMBELI: (id) => `/pembeli/${id}`,
     SEARCH_PEMBELI_BY_AKUN: (id) => `/pembeli/byIdAkun/${id}`,
+    UPDATE_POIN_PEMBELI: (id) => `/pembeli/${id}/poin`,
 
     // Organisasi Amal
     GET_ALL_ORGANISASI_AMAL: "/organisasi-amal",
@@ -54,6 +55,8 @@ export const ENDPOINTS = {
     UPDATE_PENITIP: (id) => `/penitip/${id}`,
     DELETE_PENITIP: (id) => `/penitip/${id}`,
     SEARCH_PENITIP_BY_AKUN: (id) => `/penitip/byIdAkun/${id}`,
+    ADD_KEUNTUNGAN_PENITIP: (id) => `/penitip/add-keuntungan/${id}`,
+
 
     // Penitipan
     GET_ALL_PENITIPAN: "/penitipan",

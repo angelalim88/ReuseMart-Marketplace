@@ -12,6 +12,9 @@ import CetakNotaPengambilan from '../../components/pdf/CetakNotaPengambilan';
 import TransaksiCard from '../../components/card/CardListPengiriman';
 import { UpdatePengirimanStatus } from '../../clients/PengirimanService';
 import { CreateTransaksi } from '../../clients/TransaksiService'; // Add this
+import { UpdateKeuntunganPenitip } from '../../clients/PenitipService';
+import { UpdatePoinPembeli } from '../../clients/PembeliService';
+
 
 const Pengiriman = () => {
   const [transaksiList, setTransaksiList] = useState([]);
@@ -173,6 +176,22 @@ const Pengiriman = () => {
     }
   };
 
+  const calculatePoinPembeli = (totalHargaBarang) => {
+    const harga = parseFloat(totalHargaBarang);
+    
+    // Base poin: tiap 10.000 dapat 1 poin
+    let basePoin = Math.floor(harga / 10000);
+    
+    // Bonus 20% jika pembelian di atas 500.000
+    if (harga > 500000) {
+      const bonusPoin = Math.floor(basePoin * 0.20);
+      basePoin += bonusPoin;
+    }
+    
+    return basePoin;
+  };
+
+
   const handleConfirmDiambil = async (transaksi) => {
     try {
       const today = new Date().toISOString();
@@ -189,44 +208,70 @@ const Pengiriman = () => {
 
       // Create Transaksi for each barang
       for (const barang of transaksi.barang) {
-              if (barang.id_penitip) {
-                try {
-                  const id_sub_pembelian = barang.id_sub_pembelian;
-                  if (!id_sub_pembelian) throw new Error(`SubPembelian not found for barang ${barang.id_barang}`);
-      
-                  const penitipan = barang.Penitipan;
-                  if (!penitipan) throw new Error(`Penitipan not found for barang ${barang.id_barang}`);
-      
-                  const harga = parseFloat(barang.harga);
-                  let komisi_reusemart_percent = penitipan.perpanjangan ? 0.25 : 0.20;
-                  let komisi_reusemart = harga * komisi_reusemart_percent;
-                  let komisi_hunter = barang.id_hunter ? harga * 0.05 : 0;
-                  if (komisi_hunter > 0) komisi_reusemart -= komisi_hunter;
-      
-                  const saleDate = new Date(transaksi.tanggal_pembelian);
-                  const penitipanDate = new Date(penitipan.tanggal_awal_penitipan);
-                  const daysDiff = (saleDate - penitipanDate) / (1000 * 60 * 60 * 24);
-                  let bonus_cepat = daysDiff < 7 ? harga * 0.10 * komisi_reusemart_percent : 0;
-                  if (bonus_cepat > 0) komisi_reusemart -= bonus_cepat;
-      
-                  const pendapatan = harga - komisi_reusemart - komisi_hunter;
-      
-                  const transaksiPayload = {
-                    id_sub_pembelian,
-                    komisi_reusemart,
-                    komisi_hunter: komisi_hunter ? komisi_hunter : 0,
-                    pendapatan,
-                    bonus_cepat: bonus_cepat ? bonus_cepat : 0,
-                  };
-                  console.log(`Creating Transaksi for barang ${barang.id_barang}:`, transaksiPayload);
-                  console.log(transaksiPayload);
-                  await CreateTransaksi(transaksiPayload);
-                  console.log(`Created Transaksi for barang ${barang.id_barang}, id_sub_pembelian: ${id_sub_pembelian}`);
-                } catch (err) {
-                  console.error(`Failed to create Transaksi for barang ${barang.id_barang}:`, err.message, err.response);
-                  showNotification(`Gagal membuat transaksi untuk barang ${barang.nama}!`, 'danger');
-                }
-              }
+        if (barang.id_penitip) {
+          try {
+            const id_sub_pembelian = barang.id_sub_pembelian;
+            if (!id_sub_pembelian) throw new Error(`SubPembelian not found for barang ${barang.id_barang}`);
+
+            const penitipan = barang.Penitipan;
+            if (!penitipan) throw new Error(`Penitipan not found for barang ${barang.id_barang}`);
+
+            const harga = parseFloat(barang.harga);
+            let komisi_reusemart_percent = penitipan.perpanjangan ? 0.25 : 0.20;
+            let komisi_reusemart = harga * komisi_reusemart_percent;
+            let komisi_hunter = barang.id_hunter ? harga * 0.05 : 0;
+            if (komisi_hunter > 0) komisi_reusemart -= komisi_hunter;
+
+            const saleDate = new Date(transaksi.tanggal_pembelian);
+            const penitipanDate = new Date(penitipan.tanggal_awal_penitipan);
+            const daysDiff = (saleDate - penitipanDate) / (1000 * 60 * 60 * 24);
+            let bonus_cepat = daysDiff < 7 ? harga * 0.10 * komisi_reusemart_percent : 0;
+            if (bonus_cepat > 0) komisi_reusemart -= bonus_cepat;
+
+            const pendapatan = harga - komisi_reusemart - komisi_hunter;
+
+            const transaksiPayload = {
+              id_sub_pembelian,
+              komisi_reusemart,
+              komisi_hunter: komisi_hunter ? komisi_hunter : 0,
+              pendapatan,
+              bonus_cepat: bonus_cepat ? bonus_cepat : 0,
+            };
+            
+            console.log(`Creating Transaksi for barang ${barang.id_barang}:`, transaksiPayload);
+            await CreateTransaksi(transaksiPayload);
+            console.log(`Created Transaksi for barang ${barang.id_barang}, id_sub_pembelian: ${id_sub_pembelian}`);
+            
+            // 🔥 UPDATE SALDO PENITIP
+            const totalKeuntunganPenitip = pendapatan + (bonus_cepat || 0);
+            await UpdateKeuntunganPenitip(barang.id_penitip, totalKeuntunganPenitip);
+            console.log(`Updated keuntungan for penitip ${barang.id_penitip}: +${totalKeuntunganPenitip}`);
+            
+          } catch (err) {
+            console.error(`Failed to create Transaksi for barang ${barang.id_barang}:`, err.message, err.response);
+            showNotification(`Gagal membuat transaksi untuk barang ${barang.nama}!`, 'danger');
+          }
+        }
+      }
+
+      // 🔥 UPDATE POIN PEMBELI (SETELAH LOOP SELESAI)
+      try {
+        // Hitung total harga barang (tanpa ongkir)
+        const totalHargaBarang = transaksi.barang.reduce((total, barang) => {
+          return total + parseFloat(barang.harga || 0);
+        }, 0);
+
+        // Hitung poin yang didapat
+        const poinDidapat = calculatePoinPembeli(totalHargaBarang);
+
+        if (poinDidapat > 0) {
+          await UpdatePoinPembeli(transaksi.id_pembeli, poinDidapat);
+          console.log(`Updated poin for pembeli ${transaksi.id_pembeli}: +${poinDidapat} poin`);
+          showNotification(`Pembeli mendapat ${poinDidapat} poin loyalitas!`, 'success');
+        }
+      } catch (poinError) {
+        console.error('Error updating poin pembeli:', poinError);
+        showNotification('Transaksi berhasil, namun gagal menambah poin pembeli!', 'warning');
       }
 
       // Update transaksiList

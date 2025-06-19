@@ -34,3 +34,23 @@ export const DeletePenitip = async (id) => {
 
 export const UpdateTotalPoinPenitip = (id, newPoin) =>
     apiClient.put(ENDPOINTS.UPDATE_PENITIP(id), { total_poin: newPoin });
+
+export const AddKeuntunganPenitip = (id, tambahan_keuntungan) =>
+    apiClient.put(ENDPOINTS.ADD_KEUNTUNGAN_PENITIP(id), { tambahan_keuntungan });
+
+export const UpdateKeuntunganPenitip = async (id_penitip, tambahan_keuntungan) => {
+  try {
+    // Ambil data penitip saat ini
+    const currentPenitip = await GetPenitipById(id_penitip);
+    const currentKeuntungan = parseFloat(currentPenitip.data.keuntungan || 0);
+    
+    // Hitung keuntungan baru
+    const newKeuntungan = currentKeuntungan + parseFloat(tambahan_keuntungan);
+    
+    // Update keuntungan penitip
+    return await UpdatePenitip(id_penitip, { keuntungan: newKeuntungan });
+  } catch (error) {
+    console.error('Error updating keuntungan penitip:', error);
+    throw error;
+  }
+};
