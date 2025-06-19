@@ -610,7 +610,7 @@ const HistoryTransaksi = ({ pembeliId }) => {
                         </button>
                       )}
                       {
-                        countdowns[transaction.pembelian.id_pembelian] != null ? 
+                        countdowns[transaction.pembelian.id_pembelian] != null && (transaction.pembelian.status_pembelian === 'Menunggu pembayaran' || transaction.pembelian.status_pembelian === 'Menunggu verifikasi pembayaran') ? 
                         <button
                           style={{ ...historyStyles.buttonPrimary, marginLeft: '10px' }}
                           type="button"

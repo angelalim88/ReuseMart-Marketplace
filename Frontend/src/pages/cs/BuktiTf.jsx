@@ -5,6 +5,12 @@ import { toast } from 'sonner';
 import { decodeToken } from '../../utils/jwtUtils';
 import { apiPembelian } from '../../clients/PembelianService';
 import BuktiBayarModal from '../../components/modal/BuktiBayarModal';
+import VerifikasiBuktiBayarModal from '../../components/modal/VerifikasiBuktiBayarModal';
+import { UpdatePengirimanStatus } from '../../clients/PengirimanService';
+import { UpdatePenitipan } from '../../clients/PenitipanService';
+import { generateNotaPenjualan } from "../../components/pdf/CetakNotaPenjualan";
+import { apiPembeli } from '../../clients/PembeliService';
+import { SendNotification } from '../../clients/NotificationServices';
 
 const CekBuktiTf = () => {
   
@@ -114,6 +120,46 @@ const CekBuktiTf = () => {
     fetchUserData();
     fetchPembelian();
   }, []);
+
+  const handleVerification = async (val) => {
+    try {
+      if(val) {
+        const responsePembelian = await apiPembelian.updatePembelian(selectedPembelian?.id_pembelian, { status_pembelian: "Pembayaran valid", id_customer_service: customerService?.id_pegawai });
+        if(responsePembelian) {
+          const responsePengiriman = await UpdatePengirimanStatus(selectedPembelian?.Pengiriman?.id_pengiriman, { status_pengiriman: "Diproses", jenis_pengiriman: selectedPembelian?.Pengiriman?.jenis_pengiriman });
+          if(responsePengiriman) {
+            console.log(responsePengiriman);
+            selectedPembelian?.SubPembelians.forEach(async (sb) => {
+              await UpdatePenitipan(sb?.Barang?.Penitipan?.id_penitipan, { status_penitipan: "Terjual"});
+              const notification = { 
+                fcmToken: sb?.Barang?.Penitip?.Akun?.fcm_token, 
+                title: "Barang terjual", 
+                body: `Barang ${sb?.Barang?.nama} dengan id ${sb?.Barang?.id_barang} telah terjual!`
+              }
+              await SendNotification(notification);           
+            });
+          }
+        }
+      } else {
+        const responsePembelian = await apiPembelian.updatePembelian(selectedPembelian?.id_pembelian, { status_pembelian: "Pembayaran tidak valid", id_customer_service: customerService?.id_pegawai });
+        if(responsePembelian) {
+          const responsePengiriman = await UpdatePengirimanStatus(selectedPembelian?.Pengiriman?.id_pengiriman, { status_pengiriman: "Tidak diproses", jenis_pengiriman: selectedPembelian?.Pengiriman?.jenis_pengiriman });
+          if(responsePengiriman) {
+            selectedPembelian?.SubPembelians.forEach(async (sb) => {
+              await UpdatePenitipan(sb?.Barang?.Penitipan?.id_penitipan, { status_penitipan: "Dalam masa penitipan"});           
+            });
+            await apiPembeli.updatePembeli(selectedPembelian?.Pembeli?.id_pembeli, {total_poin: selectedPembelian?.Pembeli?.total_poin + ((selectedPembelian?.potongan_poin/10000)*100)});
+          }
+        }
+      }
+      toast.success("Berhasil melakukan verifikasi bukti bayar!");
+    } catch (error) {
+      console.error("Gagal melakukan verifikasi bukti bayar: ", error);
+      toast.error("Gagal melakukan verifikasi bukti bayar!");
+    } finally {
+      await fetchPembelian();
+    }
+  }
 
   return (
     <div className="container-fluid mt-4 px-5" style={{ fontFamily: 'Inter, sans-serif', backgroundColor: '#f9f9f9' }}>
@@ -226,6 +272,7 @@ const CekBuktiTf = () => {
                   <p style={{ fontSize: '0.85rem' }} className="mt-2 mb-2">Barang: 
                     {
                       item?.SubPembelians.map((sb, i) => {
+                        if(i == item?.SubPembelians.length - 1) return <a key={i} href={`/barang/${sb?.Barang?.id_barang}`} style={{ color: "black", textDecoration: "none"}}>{sb?.Barang?.nama}</a>
                         return <a key={i} href={`/barang/${sb?.Barang?.id_barang}`} style={{ color: "black", textDecoration: "none"}}>{sb?.Barang?.nama}, </a>
                       })
                     }
@@ -239,6 +286,7 @@ const CekBuktiTf = () => {
               </div>
               
               <div className="d-flex flex-row w-100 justify-content-end mt-3">
+                <button type='button' className='btn btn-secondary me-2' onClick={() => generateNotaPenjualan(item?.id_pembelian)}>Cetak Nota</button>
                 {
                   item?.bukti_transfer ? 
                   <button type="button" data-bs-toggle="modal" data-bs-target="#cek-bukti-bayar-modal" className={`btn btn-primary me-2`} onClick={() => setSelectedPembelian(item)}>Cek Bukti Bayar</button>
@@ -268,7 +316,8 @@ const CekBuktiTf = () => {
         </div>
 
       </div>
-      <BuktiBayarModal img={selectedPembelian?.bukti_transfer}/>
+      <BuktiBayarModal img={selectedPembelian?.bukti_transfer} />
+      <VerifikasiBuktiBayarModal pembelian={selectedPembelian} onVerification={handleVerification} />
     </div>
   );
 

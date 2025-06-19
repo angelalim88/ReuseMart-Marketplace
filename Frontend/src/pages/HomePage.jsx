@@ -461,7 +461,7 @@ const HomePage = () => {
           
           {filteredBarangList.length > 0 ? (
             <div className="row row-cols-2 row-cols-sm-3 row-cols-md-4 row-cols-lg-6">
-              {filteredBarangList.slice(0, 12).map((product, index) => (
+              {filteredBarangList.slice(0, 18).map((product, index) => (
                 <div className="col" key={index} style={styles.productColumn}>
                   <CardProduk 
                     image={

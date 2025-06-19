@@ -6,6 +6,11 @@ export const GetAllPenitip = async () => {
     return response;
 }
 
+export const GetAllPenitipCustom = async () => {
+    const response = await apiClient.get(ENDPOINTS.GET_ALL_PENITIP_CUSTOM);
+    return response;
+}
+
 export const GetPenitipById = async (id) => {
     const response = await apiClient.get(ENDPOINTS.SHOW_PENITIP(id));
     return response;

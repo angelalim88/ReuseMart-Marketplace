@@ -16,7 +16,15 @@ const BuktiBayarModal = ({img}) => {
                         <button type="button" className="btn-close" aria-label="Close" data-bs-dismiss="modal"></button>
                     </div>
                     <div className="modal-body">
-                        <img src={`http://localhost:3000/uploads/bukti_bayar/${img}`} alt="Preview" className="img-fluid border w-100" />
+                        <img 
+                        src={`http://localhost:3000/uploads/bukti_bayar/${img}`} 
+                        alt="Preview" 
+                        className="img-fluid border w-100"
+                        onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = 'http://localhost:3000/uploads/bukti_bayar/error.jpg';
+                        }}
+                    />
                     </div>
                     <div className="modal-footer">
                     </div>

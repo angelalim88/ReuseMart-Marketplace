@@ -8,6 +8,7 @@ import {
   GetRequestDonasiById, 
   DeleteRequestDonasi 
 } from '../../clients/RequestDonasiService';
+import { CetakLaporanRequest } from '../../components/pdf/CetakLaporanRequest';
 
 const RekapRequest = () => {
   const [requestList, setRequestList] = useState([]);
@@ -169,6 +170,10 @@ const RekapRequest = () => {
     };
   };
 
+  const handleCetakLaporan = () => {
+    CetakLaporanRequest();
+  }
+
   return (
     <Container fluid className="p-0 bg-white">
       {/* Toast Notification */}
@@ -210,6 +215,7 @@ const RekapRequest = () => {
                 </div>
                 
                 <div className="d-flex gap-2 flex-wrap">
+                  <button className="btn btn-success rounded" onClick={handleCetakLaporan}>Cetak Laporan</button>
                   <Button 
                     className={`status-filter-btn ${selectedStatus === 'Menunggu konfirmasi' ? 'active-pending' : ''}`}
                     onClick={() => handleStatusChange('Menunggu konfirmasi')}

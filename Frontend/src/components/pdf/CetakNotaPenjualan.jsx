@@ -43,11 +43,7 @@ export const generateNotaPenjualan = async (id_pembelian) => {
   }
 
   const formatMoney = (nominal) => {
-    const formatted = new Intl.NumberFormat("en-US", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(parseFloat(nominal));
-    return formatted;
+    return new Intl.NumberFormat("id-ID").format(parseFloat(nominal));
   }
 
   try {
@@ -81,7 +77,8 @@ export const generateNotaPenjualan = async (id_pembelian) => {
       doc.setFont("helvetica", "normal");
       doc.text(`${pembelian?.Pembeli?.Akun?.email} / ${pembelian?.Pembeli?.nama}`, 35, 50);
       doc.text(`${pembelian?.AlamatPembeli?.alamat_lengkap}`, 15, 55);
-      doc.text(`Delivery: Kurir ReUseMart (${pembelian?.Pengiriman?.Pegawai?.nama_pegawai})`, 15, 60);
+      if(pembelian?.Pengiriman?.jenis_pengiriman == "Ambil di gudang") doc.text(`Delivery: - (diambil sendiri)`, 15, 60);
+      else doc.text(`Delivery: Kurir ReUseMart (${pembelian?.Pengiriman?.Pegawai?.nama_pegawai})`, 15, 60);
 
       let products = [];
 
@@ -93,7 +90,7 @@ export const generateNotaPenjualan = async (id_pembelian) => {
       autoTable(doc, {
         startY: 70,
         theme: "plain",
-        head: [["Barang", "Harga"]],
+        head: [["", ""]],
         body: products,
         styles: {
           fontSize: 10,
@@ -101,6 +98,9 @@ export const generateNotaPenjualan = async (id_pembelian) => {
         headStyles: {
           fontStyle: "bold",
         },
+        columnStyles: {
+          1: { halign: 'right' }
+        }
       });
     
       let y = doc.lastAutoTable.finalY + 5;
@@ -112,9 +112,9 @@ export const generateNotaPenjualan = async (id_pembelian) => {
         body: [
           ["Total", `${formatMoney(pembelian?.total_harga)}`],
           ["Ongkos Kirim", `${formatMoney(pembelian?.ongkir)}`],
-          ["Total", `${formatMoney(pembelian?.total_harga + pembelian?.ongkir)}`],
-          [`Potongan ${pembelian?.potongan_poin} poin`, `-${(pembelian?.potongan_poin/100)*10000}`],
-          ["Total", `${pembelian?.total_bayar}`],
+          ["Total", `${formatMoney((parseFloat(pembelian?.total_harga) + parseFloat(pembelian?.ongkir)))}`],
+          [`Potongan ${(pembelian?.potongan_poin/10000)*100} poin`, `- ${formatMoney(pembelian?.potongan_poin)}`],
+          ["Total", `${formatMoney(pembelian?.total_bayar)}`],
         ],
         styles: {
           fontSize: 10,
@@ -122,6 +122,9 @@ export const generateNotaPenjualan = async (id_pembelian) => {
         headStyles: {
           fontStyle: "bold",
         },
+        columnStyles: {
+          1: { halign: 'right' }
+        }
       });
 
       y = doc.lastAutoTable.finalY + 15;

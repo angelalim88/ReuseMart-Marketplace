@@ -14,6 +14,10 @@ export const apiPembelian = {
         const response = await apiClient.get(ENDPOINTS.GET_PEMBELIAN_BY_PEMBELI(id));
         return response.data;
     },
+    getPembelianByPenitipId: async (id) => {
+        const response = await apiClient.get(ENDPOINTS.GET_PEMBELIAN_BY_PENITIP(id));
+        return response.data;
+    },
     createPembelian: async (data) => {
         const response = await apiClient.post(ENDPOINTS.CREATE_PEMBELIAN, data);
         return response.data;

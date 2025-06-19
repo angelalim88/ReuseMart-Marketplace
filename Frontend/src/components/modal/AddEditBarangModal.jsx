@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Modal, Form, Button, Row, Col, Alert } from 'react-bootstrap';
 import { BsUpload, BsXCircle } from 'react-icons/bs';
 
@@ -9,6 +9,7 @@ const AddEditBarangModal = ({
   handleInputChange,
   handleDateChange,
   handleImageChange,
+  handleRemoveImage,
   imagePreview,
   handleSubmit,
   currentBarang,
@@ -17,75 +18,27 @@ const AddEditBarangModal = ({
   kategoriOptions,
   statusQCOptions,
 }) => {
-  // State to track validation errors
   const [validationError, setValidationError] = useState('');
-  
-  // Custom handler for the individual file inputs
-  const handleFileInputChange = (e, inputIndex) => {
-    const file = e.target.files[0];
+
+  const handleFileInputChange = (e) => {
     setValidationError('');
     
-    if (!file) return;
-    
-    // Check file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setValidationError('Ukuran file tidak boleh melebihi 5MB.');
-      e.target.value = null; // Reset input
-      return;
-    }
-    
-    // Check file types
-    const validTypes = ['image/jpeg', 'image/png', 'image/jpg'];
-    if (!validTypes.includes(file.type)) {
-      setValidationError('Hanya file JPEG, PNG, dan JPG yang diperbolehkan.');
-      e.target.value = null; // Reset input
-      return;
-    }
-    
-    // Create a new FileList-like object to pass to handleImageChange
-    const dataTransfer = new DataTransfer();
-    dataTransfer.items.add(file);
-    
-    // Create a customized event
-    const customEvent = {
-      target: {
-        name: 'gambar',
-        files: dataTransfer.files,
-        type: 'file',
-        dataset: { index: inputIndex } // Add index information
-      }
-    };
-    
-    // Call the parent's handler
-    handleImageChange(customEvent);
+    // Panggil handleImageChange dari parent
+    handleImageChange(e);
   };
 
-  // Function to remove a specific image
-  const handleRemoveImage = (indexToRemove) => {
-    // Create a new event to clear the specific image
-    const customEvent = {
-      target: {
-        name: 'gambar',
-        files: [],
-        type: 'file',
-        dataset: { index: indexToRemove, action: 'remove' }
-      }
-    };
-    
-    // Call the parent's handler to update the image state
-    handleImageChange(customEvent);
-    
-    // Reset the file input
-    const fileInput = document.querySelector(`input[data-index="${indexToRemove}"]`);
-    if (fileInput) fileInput.value = null;
+  const handleRemoveImageClick = (index) => {
+    // Panggil handleRemoveImage dari parent
+    handleRemoveImage(index);
   };
-  
-  // Get image URL for a specific index
+
   const getImagePreviewUrl = (index) => {
-    if (imagePreview && Array.isArray(imagePreview) && imagePreview.length > index) {
-      return imagePreview[index];
-    }
-    return null;
+    const imageKey = index === 0 ? 'image1' : 'image2';
+    return imagePreview[imageKey] || null;
+  };
+
+  const shouldShowGaransi = () => {
+    return formData.kategori_barang === 'Elektronik & Gadget';
   };
 
   return (
@@ -94,31 +47,19 @@ const AddEditBarangModal = ({
         <Modal.Title>{currentBarang ? 'Edit Barang' : 'Tambah Barang Baru'}</Modal.Title>
       </Modal.Header>
       <Modal.Body className="p-4">
-        <Form onSubmit={(e) => {
-          e.preventDefault();
-          
-          // Clone formData to create a safe copy
-          const submissionData = {...formData};
-          
-          // Explicitly handle the hunter ID - set empty string or 'null' to null
-          if (!submissionData.id_hunter || submissionData.id_hunter === 'null' || submissionData.id_hunter === '') {
-            submissionData.id_hunter = null;
-          }
-          
-          handleSubmit(e, submissionData);
-        }}>
+        <Form onSubmit={handleSubmit}>
           {validationError && (
             <Alert variant="danger" className="mb-3">
               {validationError}
             </Alert>
           )}
-          
+
           {/* Basic Information */}
           <Row>
             <Col md={6}>
               <Form.Group className="mb-3">
                 <Form.Label>Penitip <span className="text-danger">*</span></Form.Label>
-                <Form.Select 
+                <Form.Select
                   name="id_penitip"
                   value={formData.id_penitip || ''}
                   onChange={handleInputChange}
@@ -157,7 +98,7 @@ const AddEditBarangModal = ({
             <Col md={12}>
               <Form.Group className="mb-3">
                 <Form.Label>Hunter (Opsional)</Form.Label>
-                <Form.Select 
+                <Form.Select
                   name="id_hunter"
                   value={formData.id_hunter || ''}
                   onChange={handleInputChange}
@@ -235,10 +176,11 @@ const AddEditBarangModal = ({
             </Col>
           </Row>
 
+          {/* Status QC - Dapat dipilih oleh Pegawai Gudang */}
           <Row>
             <Col md={6}>
               <Form.Group className="mb-3">
-                <Form.Label>Status QC <span className="text-danger">*</span></Form.Label>
+                <Form.Label>Status Quality Check <span className="text-danger">*</span></Form.Label>
                 <Form.Select
                   name="status_qc"
                   value={formData.status_qc || ''}
@@ -246,51 +188,66 @@ const AddEditBarangModal = ({
                   required
                   className="form-control-custom"
                 >
+                  <option value="">Pilih Status QC</option>
                   {statusQCOptions.map((status, index) => (
-                    <option key={index} value={status}>{status}</option>
+                    <option key={index} value={status}>
+                      {status}
+                    </option>
                   ))}
                 </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Check
-                  type="checkbox"
-                  id="garansi_berlaku"
-                  label="Garansi Berlaku"
-                  name="garansi_berlaku"
-                  checked={formData.garansi_berlaku === true || formData.garansi_berlaku === "true"}
-                  onChange={handleInputChange}
-                  className="mt-4"
-                />
+                <Form.Text className="text-muted">
+                  Tentukan status quality check untuk barang ini
+                </Form.Text>
               </Form.Group>
             </Col>
           </Row>
 
-          {(formData.garansi_berlaku === true || formData.garansi_berlaku === "true") && (
-            <Form.Group className="mb-3">
-              <Form.Label>Tanggal Garansi <span className="text-danger">*</span></Form.Label>
-              <Form.Control
-                type="date"
-                name="tanggal_garansi"
-                value={formData.tanggal_garansi || ''}
-                onChange={handleDateChange}
-                required
-                className="form-control-custom"
-              />
-            </Form.Group>
+          {shouldShowGaransi() && (
+            <>
+              <Row>
+                <Col md={12}>
+                  <Form.Group className="mb-3">
+                    <Form.Check
+                      type="checkbox"
+                      id="garansi_berlaku"
+                      label="Garansi Berlaku"
+                      name="garansi_berlaku"
+                      checked={formData.garansi_berlaku === true || formData.garansi_berlaku === "true"}
+                      onChange={handleInputChange}
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+
+              {(formData.garansi_berlaku === true || formData.garansi_berlaku === "true") && (
+                <Form.Group className="mb-3">
+                  <Form.Label>Tanggal Garansi <span className="text-danger">*</span></Form.Label>
+                  <Form.Control
+                    type="date"
+                    name="tanggal_garansi"
+                    value={formData.tanggal_garansi || ''}
+                    onChange={handleDateChange}
+                    required
+                    className="form-control-custom"
+                  />
+                </Form.Group>
+              )}
+            </>
           )}
 
-          {/* Image Upload Section - Two separate inputs */}
+          {/* Gambar Section */}
           <Row className="mb-3">
             <Col md={6}>
               <Form.Group>
-                <Form.Label>Gambar Barang 1 <span className="text-danger">*</span></Form.Label>
+                <Form.Label>
+                  Gambar Barang 1 
+                  {!currentBarang && <span className="text-danger">*</span>}
+                </Form.Label>
                 <div className="input-group">
                   <Form.Control
                     type="file"
                     accept="image/jpeg,image/png,image/jpg"
-                    onChange={(e) => handleFileInputChange(e, 0)}
+                    onChange={handleFileInputChange}
                     data-index="0"
                     className="form-control form-control-custom"
                   />
@@ -301,8 +258,7 @@ const AddEditBarangModal = ({
                 <Form.Text className="text-muted d-block mb-2">
                   Format: JPEG, PNG, JPG. Maks: 5MB.
                 </Form.Text>
-                
-                {/* Image Preview */}
+
                 {getImagePreviewUrl(0) && (
                   <div className="image-preview-item mt-2">
                     <div className="position-relative">
@@ -311,11 +267,12 @@ const AddEditBarangModal = ({
                         alt="Preview 1"
                         className="preview-image"
                       />
-                      <Button 
-                        variant="danger" 
-                        size="sm" 
+                      <Button
+                        variant="danger"
+                        size="sm"
                         className="remove-image-btn"
-                        onClick={() => handleRemoveImage(0)}
+                        onClick={() => handleRemoveImageClick(0)}
+                        type="button"
                       >
                         <BsXCircle />
                       </Button>
@@ -331,7 +288,7 @@ const AddEditBarangModal = ({
                   <Form.Control
                     type="file"
                     accept="image/jpeg,image/png,image/jpg"
-                    onChange={(e) => handleFileInputChange(e, 1)}
+                    onChange={handleFileInputChange}
                     data-index="1"
                     className="form-control form-control-custom"
                   />
@@ -342,8 +299,7 @@ const AddEditBarangModal = ({
                 <Form.Text className="text-muted d-block mb-2">
                   Format: JPEG, PNG, JPG. Maks: 5MB.
                 </Form.Text>
-                
-                {/* Image Preview */}
+
                 {getImagePreviewUrl(1) && (
                   <div className="image-preview-item mt-2">
                     <div className="position-relative">
@@ -352,11 +308,12 @@ const AddEditBarangModal = ({
                         alt="Preview 2"
                         className="preview-image"
                       />
-                      <Button 
-                        variant="danger" 
-                        size="sm" 
+                      <Button
+                        variant="danger"
+                        size="sm"
                         className="remove-image-btn"
-                        onClick={() => handleRemoveImage(1)}
+                        onClick={() => handleRemoveImageClick(1)}
+                        type="button"
                       >
                         <BsXCircle />
                       </Button>
@@ -377,37 +334,37 @@ const AddEditBarangModal = ({
           </div>
         </Form>
       </Modal.Body>
-      
+
       <style jsx>{`
         .form-control-custom {
           border-radius: 6px;
           border-color: #E7E7E7;
           padding: 10px 12px;
         }
-        
+
         .form-control-custom:focus {
           box-shadow: none;
           border-color: #028643;
         }
-        
+
         .modal-content {
           border-radius: 8px;
           border: none;
         }
-        
+
         .image-preview-item {
           width: 100%;
           border-radius: 4px;
           overflow: hidden;
           box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        
+
         .preview-image {
           width: 100%;
           height: 150px;
           object-fit: cover;
         }
-        
+
         .remove-image-btn {
           position: absolute;
           top: 5px;
@@ -421,6 +378,10 @@ const AddEditBarangModal = ({
           justify-content: center;
           background-color: rgba(220, 53, 69, 0.9);
           border: none;
+        }
+
+        .remove-image-btn:hover {
+          background-color: rgba(220, 53, 69, 1);
         }
       `}</style>
     </Modal>

@@ -1,246 +1,385 @@
 import React, { useEffect, useState } from 'react';
-import "bootstrap/dist/css/bootstrap.min.css";
-import { GetAllPenitip, DeletePenitip } from "../../clients/PenitipService"; 
-import { FaSearch } from 'react-icons/fa';
-import PenitipFormModal from "../../components/modal/PenitipFormModal";
-import EditPenitipFormModal from "../../components/modal/EditPenitipFormModal"; // Added import
-import { Badge } from 'react-bootstrap';
+import { Container, Row, Col, Button, Form, Spinner, Badge } from 'react-bootstrap';
+import { BsSearch, BsExclamationTriangle } from 'react-icons/bs';
+import { GetAllPenitip, DeletePenitip } from '../../clients/PenitipService';
+import RoleSidebar from '../../components/navigation/Sidebar';
+import ToastNotification from '../../components/toast/ToastNotification';
+import PaginationComponent from '../../components/pagination/Pagination';
+import PenitipFormModal from '../../components/modal/PenitipFormModal';
+import EditPenitipFormModal from '../../components/modal/EditPenitipFormModal';
+import ConfirmationModalUniversal from '../../components/modal/ConfirmationModalUniversal';
 
-const styles = {
-  container: {
-    backgroundColor: '#F8F9FA',
-    minHeight: '100vh',
-    paddingTop: '2%',
-    paddingLeft: '8%',
-    paddingRight: '8%',
-  },
-  card: {
-    width: '25rem',
-    borderRadius: '12px',
-    boxShadow: '0 5px 15px rgba(0, 0, 0, 0.08)',
-    marginBottom: '30px',
-  },
-  cardImage: {
-    width: '100%',
-    height: '250px',
-    objectFit: 'cover',
-    borderRadius: '8px',
-  },
-  cardBody: {
-    padding: '15px',
-    textAlign: 'center',
-  },
-  cardTitle: {
-    fontSize: '1.25rem',
-    fontWeight: 'bold',
-  },
-  cardText: {
-    fontSize: '1rem',
-    color: '#555',
-  },
-  buttonPrimary: {
-    marginRight: '10px',
-  },
-  pagination: {
-    display: 'flex',
-    justifyContent: 'center',
-    marginTop: '30px',
-  },
-  searchContainerStyle: {
-    display: 'flex',
-    justifyContent: 'space-between', 
-    alignItems: 'center',
-    margin: "2% 0% 2% 0%", 
-  },
-  searchIconStyle: {
-    transform: 'translateY(-10%)',
-    transform: 'translateX(200%)',
-    color: '#D9D9D9',
-  },
-  searchInputStyle: {
-    padding: '10px 15px 10px 40px',
-    borderRadius: '25px',
-    border: '1px solid #D9D9D9',
-    width: '100%',
-    marginRight: '2%',
-    backgroundColor: '#F8F9FA',
-  },
-  buttonStyle: {
-    padding: '10px 2px',
-    width: '200px',
-    backgroundColor: '#028643', 
-    color: 'white',
-    border: 'none',
-    borderRadius: '50px',
-    cursor: 'pointer',
-  },
+const PenitipCard = ({ penitip, onEdit, onDelete }) => {
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('id-ID');
+  };
+
+  return (
+    <Col xs={12} md={6} lg={4} className="mb-4">
+      <div className="barang-card card">
+        <div className="image-container">
+          <img
+            src={penitip.Akun.profile_picture || '/default-profile.png'}
+            alt="Profile"
+            className="barang-image"
+          />
+        </div>
+        <div className="card-body">
+          <div className="card-header-section">
+            <span className="barang-id">ID: {penitip.id_penitip}</span>
+            {penitip.badge && <Badge bg="warning" text="dark">Top Seller</Badge>}
+          </div>
+          <h5 className="barang-name">{penitip.nama_penitip}</h5>
+          <div className="barang-info">
+            <p><span className="fw-medium">Email:</span> {penitip.Akun.email}</p>
+            <p><span className="fw-medium">Rating:</span> {penitip.rating} stars</p>
+            <p><span className="fw-medium">Total Points:</span> {penitip.total_poin}</p>
+            <p><span className="fw-medium">Keuntungan:</span> Rp {penitip.keuntungan.toLocaleString()}</p>
+            <p><span className="fw-medium">Registrasi:</span> {formatDate(penitip.tanggal_registrasi)}</p>
+          </div>
+          <div className="action-buttons d-flex gap-2">
+            <Button variant="outline-primary" className="edit-btn" onClick={() => onEdit(penitip)}>
+              Edit
+            </Button>
+            <Button variant="outline-danger" className="delete-btn" onClick={() => onDelete(penitip)}>
+              Hapus
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Col>
+  );
 };
 
 const DataPenitip = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [penitipList, setPenitipList] = useState([]);
+  const [filteredPenitip, setFilteredPenitip] = useState([]);
+  const [selectedView, setSelectedView] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false); // Added state for edit modal
-  const [selectedPenitip, setSelectedPenitip] = useState(null); // Added state for selected penitip
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedPenitip, setSelectedPenitip] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [confirmMessage, setConfirmMessage] = useState('');
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState('success');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(6);
 
-  const handleModalClose = () => setShowModal(false);
-  const handleModalOpen = () => setShowModal(true);
-  const handleEditModalClose = () => setShowEditModal(false); // Added handler for edit modal close
-  const handleEditModalOpen = (penitip) => { // Added handler for edit modal open
-    setSelectedPenitip(penitip);
-    setShowEditModal(true);
+  const penitipViews = [
+    { id: 'all', name: 'Semua Penitip' },
+    { id: 'top_seller', name: 'Top Seller' },
+    { id: 'high_rating', name: 'Rating Tinggi' },
+  ];
+
+  const showNotification = (message, type = 'success') => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 5000);
   };
 
-  const refreshData = async () => {
-    const response = await GetAllPenitip();
-    setPenitipList(response.data);
-  };
-
-  useEffect(() => {
-    const fetchPenitip = async () => {
-      try {
-        const response = await GetAllPenitip();
-        console.log(response.data);
-        const penitip = response.data;
-        setPenitipList(penitip);
-        setLoading(false);
-      } catch (err) {
-        setError("Failed to fetch penitip data");
-        setLoading(false);
-      }
-    };
-
-    fetchPenitip();
-  }, []);
-
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (error) {
-    return <div>{error}</div>;
-  }
-
-  const handleDelete = async (id) => {
-    if (window.confirm("Apakah Anda yakin ingin menghapus penitip ini?")) {
-      try {
-        await DeletePenitip(id);
-        alert("Penitip berhasil dihapus!");
-        await refreshData(); 
-      } catch (error) {
-        console.error("Gagal menghapus penitip:", error);
-        alert("Gagal menghapus penitip. Cek kembali koneksi atau server.");
-      }
+  const fetchPenitip = async () => {
+    setLoading(true);
+    try {
+      const response = await GetAllPenitip();
+      setPenitipList(response.data);
+      setFilteredPenitip(response.data);
+    } catch (err) {
+      setError('Gagal memuat data penitip.');
+      showNotification('Gagal memuat data penitip.', 'danger');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const formattedDate = date.toLocaleDateString('id-ID'); 
-    const formattedTime = date.toLocaleTimeString('id-ID', { hour12: false });  
-    return `${formattedDate} | ${formattedTime}`;
+  useEffect(() => {
+    fetchPenitip();
+  }, []);
+
+  useEffect(() => {
+    let filtered = [...penitipList];
+    if (selectedView === 'top_seller') {
+      filtered = filtered.filter(p => p.badge);
+    } else if (selectedView === 'high_rating') {
+      filtered = filtered.filter(p => p.rating >= 4);
+    }
+    if (searchQuery) {
+      filtered = filtered.filter(p =>
+        p.nama_penitip.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.Akun.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.id_penitip.toString().includes(searchQuery)
+      );
+    }
+    setFilteredPenitip(filtered);
+    setCurrentPage(1);
+  }, [searchQuery, selectedView, penitipList]);
+
+  const handleDelete = (penitip) => {
+    setConfirmAction(() => async () => {
+      try {
+        await DeletePenitip(penitip.id_penitip);
+        showNotification('Penitip berhasil dihapus.', 'success');
+        fetchPenitip();
+      } catch (error) {
+        showNotification('Gagal menghapus penitip. Cek kembali koneksi atau server.', 'danger');
+      }
+    });
+    setConfirmMessage(`Apakah Anda yakin ingin menghapus penitip "${penitip.nama_penitip}"?`);
+    setShowConfirmModal(true);
   };
 
-  const filteredPenitipList = penitipList.filter((penitip) =>
-    penitip.nama_penitip.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    penitip.Akun.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    penitip.id_penitip.toString().includes(searchQuery)
-  );
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredPenitip.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredPenitip.length / itemsPerPage);
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   return (
-    <div style={styles.container}>
-      <h2>Data Penitip</h2>
-
-      <div className="col">
-        <div style={styles.searchContainerStyle}>
-          <FaSearch style={styles.searchIconStyle} />
-          <input
-            type="text"
-            placeholder="Cari Penitip (Nama, Email, atau ID)..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={styles.searchInputStyle}
-          />
-          <button style={styles.buttonStyle} onClick={handleModalOpen}>
-            Tambah Penitip
-          </button>
-        </div>
-      </div>
-
-      <div className="row">
-        {filteredPenitipList.map((penitip, index) => (
-          <div className="col-md-4" key={penitip.id_penitip}>
-            <div className="card" style={styles.card}>
-              <img
-                src={penitip.Akun.profile_picture}
-                className="card-img-top"
-                alt="Foto Profile"
-                style={styles.cardImage}
-              />
-              <div className="card-body" style={styles.cardBody}>
-              <h5 className="card-title" style={styles.cardTitle}>
-                {penitip.nama_penitip}
-                {penitip.badge && (
-                  <span className="badge text-bg-warning"  style={{ marginLeft: 8 }}>
-                    Top Seller
-                  </span>
-                )}
-              </h5>
-                <p className="card-text" style={styles.cardText}>
-                  Email: {penitip.Akun.email}
-                </p>
-                <p className="card-text" style={styles.cardText}>
-                  ID: {penitip.id_penitip}
-                </p>
-                <p className="card-text" style={styles.cardText}>
-                  Rating: {penitip.rating} stars
-                </p>
-                <p className="card-text" style={styles.cardText}>
-                  Total Points: {penitip.total_poin}
-                </p>
-                <p className="card-text" style={styles.cardText}>
-                  Keuntungan: {penitip.keuntungan}
-                </p>
-                <p className="card-text" style={styles.cardText}>
-                  Tanggal Registrasi: {formatDate(penitip.tanggal_registrasi)}
-                </p>
-                <button
-                  className="btn btn-primary"
-                  style={styles.buttonPrimary}
-                  onClick={() => handleEditModalOpen(penitip)} // Updated to open edit modal
-                >
-                  Edit
-                </button>
-                <button
-                  className="btn btn-danger"
-                  onClick={() => handleDelete(penitip.id_penitip)}
-                >
-                  Hapus
-                </button>
-              </div>
-            </div>
+    <Container fluid className="p-0 bg-white">
+      <ToastNotification
+        show={showToast}
+        setShow={setShowToast}
+        message={toastMessage}
+        type={toastType}
+      />
+      <ConfirmationModalUniversal
+        show={showConfirmModal}
+        onHide={() => setShowConfirmModal(false)}
+        onConfirm={confirmAction}
+        title="Konfirmasi Tindakan"
+        message={confirmMessage}
+        confirmButtonText="Ya"
+        cancelButtonText="Batal"
+        type="danger"
+      />
+      <div className="max-width-container mx-auto pt-4 px-3">
+        {error && (
+          <div className="alert alert-danger mb-3" role="alert">
+            {error}
           </div>
-        ))}
+        )}
+        <Row className="mb-4 align-items-center">
+          <Col>
+            <h2 className="mb-0 fw-bold" style={{ color: '#03081F' }}>Kelola Data Penitip</h2>
+            <p className="text-muted mt-1">Daftar penitip yang terdaftar</p>
+          </Col>
+          <Col xs="auto">
+            <Button className="tambah-barang-btn" onClick={() => setShowModal(true)}>
+              Tambah Penitip
+            </Button>
+          </Col>
+        </Row>
+        <Row>
+          <Col md={3}>
+            <RoleSidebar
+              namaSidebar={'Filter Penitip'}
+              roles={penitipViews}
+              selectedRole={selectedView}
+              handleRoleChange={setSelectedView}
+            />
+          </Col>
+          <Col md={9}>
+            <Row className="mb-4">
+              <Col md={6}>
+                <div className="position-relative">
+                  <BsSearch className="search-icon" />
+                  <Form.Control
+                    type="search"
+                    placeholder="Cari nama, email, atau ID penitip..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="search-input"
+                  />
+                </div>
+              </Col>
+            </Row>
+            {loading ? (
+              <div className="text-center py-5">
+                <Spinner animation="border" role="status" style={{ color: '#028643' }}>
+                  <span className="visually-hidden">Loading...</span>
+                </Spinner>
+                <p className="mt-3 text-muted">Memuat data penitip...</p>
+              </div>
+            ) : filteredPenitip.length === 0 ? (
+              <div className="text-center py-5">
+                <BsExclamationTriangle style={{ fontSize: '3rem', color: '#D9D9D9' }} />
+                <p className="mt-3 text-muted">Tidak ada data penitip yang ditemukan</p>
+              </div>
+            ) : (
+              <>
+                <Row>
+                  {currentItems.map(penitip => (
+                    <PenitipCard
+                      key={penitip.id_penitip}
+                      penitip={penitip}
+                      onEdit={() => {
+                        setSelectedPenitip(penitip);
+                        setShowEditModal(true);
+                      }}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </Row>
+                {totalPages > 1 && (
+                  <PaginationComponent
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    paginate={paginate}
+                  />
+                )}
+              </>
+            )}
+          </Col>
+        </Row>
       </div>
-      <div style={styles.pagination}>
-        <ul className="pagination">
-          <li className="page-item"><a className="page-link" href="#">1</a></li>
-          <li className="page-item"><a className="page-link" href="#">2</a></li>
-          <li className="page-item"><a className="page-link" href="#">3</a></li>
-          <li className="page-item"><a className="page-link" href="#">4</a></li>
-          <li className="page-item"><a className="page-link" href="#">5</a></li>
-        </ul>
-      </div>
-      <PenitipFormModal show={showModal} handleClose={handleModalClose} onSuccess={refreshData} />
+      <PenitipFormModal
+        show={showModal}
+        handleClose={() => setShowModal(false)}
+        onSuccess={fetchPenitip}
+      />
       <EditPenitipFormModal
         show={showEditModal}
-        handleClose={handleEditModalClose}
+        handleClose={() => setShowEditModal(false)}
         penitip={selectedPenitip}
-        onSuccess={refreshData}
-      /> {/* Added edit modal */}
-    </div>
+        onSuccess={fetchPenitip}
+      />
+      <style jsx>{`
+        .max-width-container {
+          max-width: 1200px;
+        }
+        .tambah-barang-btn {
+          background-color: #028643;
+          border-color: #028643;
+          color: white;
+          font-weight: 500;
+          padding: 10px 20px;
+          border-radius: 6px;
+        }
+        .tambah-barang-btn:hover {
+          background-color: #026d36;
+          border-color: #026d36;
+        }
+        .position-relative {
+          position: relative;
+        }
+        .search-icon {
+          position: absolute;
+          left: 15px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: #686868;
+          z-index: 10;
+        }
+        .search-input {
+          height: 45px;
+          padding-left: 45px;
+          border-radius: 25px;
+          border: 1px solid #E7E7E7;
+        }
+        .search-input:focus {
+          box-shadow: none;
+          border-color: #028643;
+        }
+        .barang-card {
+          border-radius: 8px;
+          border-color: #E7E7E7;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+          transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .barang-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .card-header-section {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 10px;
+        }
+        .barang-id {
+          color: #686868;
+          font-size: 0.9rem;
+        }
+        .barang-name {
+          color: #03081F;
+          font-weight: 600;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          height: 48px;
+        }
+        .image-container {
+          height: 180px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          background-color: #f8f9fa;
+          border-radius: 6px;
+        }
+        .barang-image {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .barang-info {
+          font-size: 0.875rem;
+          line-height: 1.5;
+        }
+        .fw-medium {
+          font-weight: 500;
+        }
+        .action-buttons {
+          margin-top: 10px;
+        }
+        .edit-btn, .delete-btn {
+          font-size: 0.8rem;
+          padding: 4px 8px;
+        }
+        .edit-btn {
+          border-color: #028643;
+          color: #028643;
+        }
+        .edit-btn:hover {
+          background-color: #028643;
+          color: white;
+        }
+        .delete-btn {
+          border-color: #dc3545;
+          color: #dc3545;
+        }
+        .delete-btn:hover {
+          background-color: #dc3545;
+          color: white;
+        }
+        .pagination .page-item.active .page-link {
+          background-color: #028643;
+          border-color: #028643;
+        }
+        .pagination .page-link {
+          color: #028643;
+        }
+        .pagination .page-link:hover {
+          color: #026d36;
+        }
+        @media (max-width: 768px) {
+          .image-container {
+            height: 140px;
+          }
+          .barang-card {
+            margin-bottom: 20px;
+          }
+        }
+      `}</style>
+    </Container>
   );
 };
 

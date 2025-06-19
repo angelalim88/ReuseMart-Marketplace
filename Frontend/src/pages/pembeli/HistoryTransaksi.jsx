@@ -14,7 +14,7 @@ import { apiAlamatPembeli } from "../../clients/AlamatPembeliServices";
 import { GetPenitipById } from "../../clients/PenitipService";
 import { apiPembelian } from "../../clients/PembelianService";
 import { GetAllTransaksi } from "../../clients/TransaksiService";
-import { CreateReviewProduk, GetReviewProdukByIdTransaksi, UpdateReviewProduk } from "../../clients/ReviewService";
+import { CreateReviewProduk, GetReviewProdukByIdTransaksi, UpdateReviewProduk, GetReviewProdukByIdBarang } from "../../clients/ReviewService";
 import { toast } from "sonner";
 
 const HistoryTransaksiPage = () => {
@@ -120,8 +120,18 @@ const HistoryTransaksiPage = () => {
   const checkExistingReview = async (idTransaksi) => {
     if (!idTransaksi) return null;
     try {
-      const reviews = await GetReviewProdukByIdTransaksi(idTransaksi);
-      return reviews.data && reviews.data.length > 0 ? reviews.data[0] : null;
+      const response = await GetReviewProdukByIdTransaksi(idTransaksi);
+      console.log(`Review check for transaction ${idTransaksi}:`, response);
+      
+      if (response.data.success) {
+        const reviewData = response.data.data[0];
+        console.log('review data tes: ', reviewData);
+        // Pastikan review memiliki data yang valid
+        if (reviewData.id_review && reviewData.rating) {
+          return reviewData;
+        }
+      }
+      return null;
     } catch (error) {
       console.error(`Error checking existing review for transaction ${idTransaksi}:`, error);
       return null;
@@ -145,18 +155,21 @@ const HistoryTransaksiPage = () => {
           const pembeliName = await getPembeliName(transaction.pembelian.id_pembeli);
           const alamatDetails = await getAlamatDetails(transaction.pembelian.id_alamat);
           const transaksiId = await getTransaksiId(transaction.barang?.[0]?.transaksi?.id_sub_pembelian);
-          
-          const barangWithPenitip = await Promise.all(
-            (transaction.barang || []).map(async (item) => ({
-              ...item,
-              penitipName: await getPenitipName(item.id_penitip),
-            }))
-          );
-
+          console.log("Transaksi ID buat raing: ", transaksiId);
           let existingReview = null;
           if (transaksiId) {
             existingReview = await checkExistingReview(transaksiId);
+            console.log(`Transaction ${transaksiId} existing review:`, existingReview);
           }
+
+          const barangWithPenitip = await Promise.all(
+            (transaction.barang || []).map(async (item) => {
+              return {
+                ...item,
+                penitipName: await getPenitipName(item.id_penitip),
+              };
+            })
+          );
 
           return {
             ...transaction,
@@ -169,6 +182,7 @@ const HistoryTransaksiPage = () => {
         })
       );
       
+      console.log('Final transformed data:', transformedData);
       setTransactions(transformedData);
       setLoading(false);
     } catch (error) {
@@ -222,6 +236,7 @@ const HistoryTransaksiPage = () => {
     setCurrentTransaction(transaction);
     setIsEditingReview(isEdit);
     if (transaction.existing_review) {
+      console.log(transaction);
       setRating(transaction.existing_review.rating);
     } else {
       setRating(0);
@@ -252,6 +267,7 @@ const HistoryTransaksiPage = () => {
       let response;
       if (isEditingReview && currentTransaction.existing_review) {
         response = await UpdateReviewProduk(currentTransaction.existing_review.id_review, { rating });
+        console.log(response);
         showNotification(`Rating berhasil diperbarui menjadi ${rating} bintang!`, 'success');
       } else {
         response = await CreateReviewProduk(reviewData);
@@ -260,6 +276,24 @@ const HistoryTransaksiPage = () => {
       
       setShowRatingModal(false);
       await fetchTransactionData();
+      const penitipId = currentTransaction.barang?.[0]?.id_penitip;
+      if (penitipId) {
+        const updatedPenitip = await GetPenitipById(penitipId);
+        console.log('Updated penitip:', updatedPenitip);
+        // Update transactions state with new penitip rating
+        setTransactions(prevTransactions =>
+          prevTransactions.map(t =>
+            t.id_transaksi === currentTransaction.id_transaksi
+              ? {
+                  ...t,
+                  barang: t.barang.map(b =>
+                    b.id_penitip === penitipId ? { ...b, penitipRating: updatedPenitip.rating } : b
+                  )
+                }
+              : t
+          )
+        );
+      }
     } catch (error) {
       console.error('Error submitting rating:', error);
       if (error.response?.data?.message) {
@@ -271,6 +305,18 @@ const HistoryTransaksiPage = () => {
       }
     } finally {
       setSubmittingRating(false);
+    }
+  };
+
+  const checkExistingReviewByBarang = async (idBarang) => {
+    if (!idBarang) return null;
+    try {
+      const response = await GetReviewProdukByIdBarang();
+      const reviews = await response.json();
+      return reviews && reviews.length > 0 ? reviews[0] : null;
+    } catch (error) {
+      console.error(`Error checking existing review for barang ${idBarang}:`, error);
+      return null;
     }
   };
 

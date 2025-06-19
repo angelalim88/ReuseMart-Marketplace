@@ -11,6 +11,7 @@ import PilihRequestDonasiModal from '../../components/modal/PilihRequestDonasiMo
 import { decodeToken } from '../../utils/jwtUtils';
 import { GetPegawaiByAkunId } from '../../clients/PegawaiService';
 import { UpdateTotalPoinPenitip } from '../../clients/PenitipService';
+import { CetakLaporanPenitipanHabis } from '../../components/pdf/CetakLaporanPenitipanHabis';
 
 const PenitipanHabisPage = () => {
   const [penitipanList, setPenitipanList] = useState([]);
@@ -241,6 +242,10 @@ const PenitipanHabisPage = () => {
     }).format(amount);
   };
 
+  const handleCetakLaporan = async () => {
+    await CetakLaporanPenitipanHabis(filteredList);
+  };
+
   return (
     <Container fluid className="p-0 bg-white">
       {/* Toast Notification */}
@@ -262,6 +267,11 @@ const PenitipanHabisPage = () => {
           <Col>
             <h2 className="mb-0 fw-bold" style={{ color: '#03081F' }}>Barang Dengan Masa Penitipan Habis</h2>
             <p className="text-muted mt-1">Daftar barang yang menunggu untuk didonasikan</p>
+          </Col>
+          <Col md="auto">
+            <Button variant="success" onClick={handleCetakLaporan}>
+              Cetak Laporan
+            </Button>
           </Col>
         </Row>
 

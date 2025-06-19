@@ -8,6 +8,8 @@ import { decodeToken } from '../../utils/jwtUtils';
 import DetailTransaksiPenitipModal from '../../components/modal/DetailTransaksiPenitipModal';
 import { toast } from "sonner";
 import EditProfilePenitipModal from '../../components/modal/EditProfilePenitipModal';
+import CetakLaporanPenitipModal from '../../components/modal/CetakLaporanPenitipModal';
+import { CetakLaporanTransaksi } from '../../components/pdf/CetakLaporanTransaksi';
 
 const PenitipProfile = () => {
 
@@ -158,6 +160,10 @@ const PenitipProfile = () => {
     useEffect(() => {
       filtering();
     }, [keyword, histori, sortMethod, currentPage]);
+
+    const handleCetakLaporanTransaksiPenitip = (id_penitip, tahun, bulan) => {
+      CetakLaporanTransaksi(bulan, tahun, id_penitip);
+    }
     
     return <>
     <div className="container mt-5 mb-5">
@@ -172,7 +178,7 @@ const PenitipProfile = () => {
             <img
               src={akun && akun.profile_picture !== '' ? `http://localhost:3000/uploads/profile_picture/${akun.profile_picture}` : 'http://localhost:3000/uploads/profile_picture/default.jpg'}
               alt="Foto Profil"
-              className="rounded-circle"
+              className="rounded-circle w-100"
               style={{
                 maxWidth:'80px',
                 minWidth: '40px',
@@ -214,7 +220,10 @@ const PenitipProfile = () => {
         </div>
       </div>
 
-      <h4 className="fw-bold mb-4" id='histori'>Histori Penjualan</h4>
+      <div className="d-flex flex-row justify-between align-items-center mb-2">
+        <h4 className="fw-bold mb-4" id='histori'>Histori Penjualan</h4>
+        <button className='btn btn-success' type='button' data-bs-toggle="modal" data-bs-target="#cetak-laporan-penitip-modal">Cetak Laporan Transaksi Penitip</button>
+      </div>
 
       <div className="d-flex flex-column flex-md-row">
         <div class="mb-3 w-100">
@@ -296,7 +305,8 @@ const PenitipProfile = () => {
       </nav>
 
     </div>
-
+    
+    <CetakLaporanPenitipModal penitip={penitip} onCetak={handleCetakLaporanTransaksiPenitip}/>
     <DetailTransaksiPenitipModal data={selectedHistori}/>
     <EditProfilePenitipModal data={{penitip, akun}} onUpdate={updateProfile}/>
   </>

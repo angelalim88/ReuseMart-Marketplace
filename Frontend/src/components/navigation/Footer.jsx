@@ -194,7 +194,7 @@ const Footer = () => {
         {/* Copyright Section */}
         <div className="row" style={styles.copyright}>
           <div className="col-md-6">
-            <p>ReuseMart copyright 2025, All Rights Reserved.</p>
+            <p>ReuseMart Copyright 2025, All Rights Reserved.</p>
           </div>
           <div className="col-md-6 text-md-end">
             <p>All rights reserved</p>

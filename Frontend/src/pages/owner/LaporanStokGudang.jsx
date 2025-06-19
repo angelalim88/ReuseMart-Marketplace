@@ -1,24 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Form, Button, Card, Modal, Table, Badge, Pagination } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Card, Modal, Alert, Table, Badge, Pagination } from 'react-bootstrap';
 import { Link } from "react-router-dom";
 import TopNavigation from "../../components/navigation/TopNavigation";
-import { GetAllTransaksi } from "../../clients/TransaksiService";
-import { GetPenitipanByIdBarang } from "../../clients/PenitipanService";
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { GetAllPenitipan } from "../../clients/PenitipanService";
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import PaginationComponent from '../../components/pagination/Pagination';
-import CetakLaporanKomisi from '../../components/pdf/CetakLaporanKomisi';
+import CetakLaporanStokGudang from '../../components/pdf/CetakLaporanStokGudang';
 
-const LaporanKomisi = () => {
-  const [transaksiData, setTransaksiData] = useState([]);
+const LaporanStokGudang = () => {
+  const [penitipanData, setPenitipanData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [selectedTransaksi, setSelectedTransaksi] = useState(null);
-  const [penitipanData, setPenitipanData] = useState({});
+  const [selectedPenitipan, setSelectedPenitipan] = useState(null);
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
   const [sortBy, setSortBy] = useState('nama');
   const [sortOrder, setSortOrder] = useState('asc');
   
@@ -28,66 +27,49 @@ const LaporanKomisi = () => {
   
   // Summary data
   const [summaryData, setSummaryData] = useState({
-    totalTransaksi: 0,
-    totalKomisiHunter: 0,
-    totalKomisiReusemart: 0,
-    totalBonusCepat: 0,
+    totalPenitipan: 0,
+    totalNilaiStok: 0,
+    totalBeratStok: 0,
+    penitipanPerpanjangan: 0,
     kategoriDistribusi: [],
     statusDistribusi: [],
+    rataRataHarga: 0
   });
 
-  // Color palette consistent with LaporanStokGudang
+  // Color palette consistent with LaporanBulananPage
   const colors = {
-    primary: '#028643',
-    secondary: '#FC8A06',
-    white: '#FFFFFF',
-    dark: '#03081F',
-    gray: '#D9D9D9',
-    muted: '#686868'
+    primary: '#028643',    
+    secondary: '#FC8A06',  
+    white: '#FFFFFF',      
+    dark: '#03081F',       
+    gray: '#D9D9D9',       
+    muted: '#686868'       
   };
 
   const statusColors = {
-    'Pembayaran valid': colors.primary,
-    'Menunggu pembayaran': colors.secondary,
-    'Dibatalkan': '#dc3545',
-    'Perlu konfirmasi': '#6f42c1'
+    'Berakhir': '#dc3545',
+    'Aktif': colors.primary,
+    'Menunggu': colors.secondary,
+    'Dibatalkan': colors.muted
   };
 
   useEffect(() => {
-    fetchTransaksiData();
+    fetchPenitipanData();
   }, []);
 
   useEffect(() => {
     filterAndSortData();
-  }, [transaksiData, searchTerm, selectedCategory, sortBy, sortOrder]);
+  }, [penitipanData, searchTerm, selectedCategory, selectedStatus, sortBy, sortOrder]);
 
-  const fetchTransaksiData = async () => {
+  const fetchPenitipanData = async () => {
     setLoading(true);
     try {
-      const response = await GetAllTransaksi();
+      const response = await GetAllPenitipan();
       const data = response.data || [];
-      setTransaksiData(data);
+      setPenitipanData(data);
       processSummaryData(data);
-
-      // Fetch penitipan data for each id_barang
-      const penitipanMap = {};
-      for (const transaksi of data) {
-        const idBarang = transaksi.SubPembelian?.id_barang;
-        if (idBarang) {
-          try {
-            const penitipanResponse = await GetPenitipanByIdBarang(idBarang);
-            if (penitipanResponse.data) {
-              penitipanMap[idBarang] = penitipanResponse.data.tanggal_awal_penitipan;
-            }
-          } catch (error) {
-            console.error(`Error fetching penitipan for id_barang ${idBarang}:`, error);
-            penitipanMap[idBarang] = null;
-          }
-        }
-      }
-      setPenitipanData(penitipanMap);
     } catch (error) {
-      console.error('Error fetching transaksi data:', error);
+      console.error('Error fetching penitipan data:', error);
     }
     setLoading(false);
   };
@@ -99,91 +81,108 @@ const LaporanKomisi = () => {
   const processSummaryData = (data) => {
     if (!data || data.length === 0) {
       setSummaryData({
-        totalTransaksi: 0,
-        totalKomisiHunter: 0,
-        totalKomisiReusemart: 0,
-        totalBonusCepat: 0,
+        totalPenitipan: 0,
+        totalNilaiStok: 0,
+        totalBeratStok: 0,
+        penitipanPerpanjangan: 0,
         kategoriDistribusi: [],
         statusDistribusi: [],
+        rataRataHarga: 0
       });
       return;
     }
 
-    const totalTransaksi = data.length;
-    const totalKomisiHunter = data.reduce((sum, item) => sum + parseFloat(item.komisi_hunter || 0), 0);
-    const totalKomisiReusemart = data.reduce((sum, item) => sum + parseFloat(item.komisi_reusemart || 0), 0);
-    const totalBonusCepat = data.reduce((sum, item) => sum + parseFloat(item.bonus_cepat || 0), 0);
+    const totalPenitipan = data.length;
+    const totalNilaiStok = data.reduce((sum, item) => sum + parseFloat(item.Barang?.harga || 0), 0);
+    const totalBeratStok = data.reduce((sum, item) => sum + parseFloat(item.Barang?.berat || 0), 0);
+    const penitipanPerpanjangan = data.filter(item => item.perpanjangan).length;
+    const rataRataHarga = totalPenitipan > 0 ? totalNilaiStok / totalPenitipan : 0;
 
+    // Kategori distribution
     const kategoriMap = {};
     data.forEach(item => {
-      const kategori = item.SubPembelian?.Barang?.kategori_barang || 'Tidak Dikategorikan';
+      const kategori = item.Barang?.kategori_barang || 'Tidak Dikategorikan';
       if (!kategoriMap[kategori]) {
         kategoriMap[kategori] = { name: kategori, value: 0, count: 0 };
       }
-      kategoriMap[kategori].value += parseFloat(item.SubPembelian?.Pembelian?.total_harga || 0);
+      kategoriMap[kategori].value += parseFloat(item.Barang?.harga || 0);
       kategoriMap[kategori].count += 1;
     });
     const kategoriDistribution = Object.values(kategoriMap);
 
+    // Status distribution
     const statusMap = {};
     data.forEach(item => {
-      const status = item.SubPembelian?.Pembelian?.status_pembelian || 'Unknown';
+      const status = item.status_penitipan || 'Unknown';
       if (!statusMap[status]) {
         statusMap[status] = { name: status, value: 0, count: 0 };
       }
-      statusMap[status].value += parseFloat(item.SubPembelian?.Pembelian?.total_harga || 0);
+      statusMap[status].value += parseFloat(item.Barang?.harga || 0);
       statusMap[status].count += 1;
     });
     const statusDistribution = Object.values(statusMap);
 
     setSummaryData({
-      totalTransaksi,
-      totalKomisiHunter,
-      totalKomisiReusemart,
-      totalBonusCepat,
+      totalPenitipan,
+      totalNilaiStok,
+      totalBeratStok,
+      penitipanPerpanjangan,
       kategoriDistribusi: kategoriDistribution,
-      statusDistribusi: statusDistribution
+      statusDistribusi: statusDistribution,
+      rataRataHarga
     });
   };
 
   const filterAndSortData = () => {
-    let filtered = [...transaksiData];
+    let filtered = [...penitipanData];
 
+    // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(item =>
-        item.SubPembelian?.Barang?.nama?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.SubPembelian?.id_barang?.toLowerCase().includes(searchTerm.toLowerCase())
+        item.Barang?.nama?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.id_penitipan?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.Barang?.Penitip?.nama_penitip?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
+    // Apply category filter
     if (selectedCategory) {
-      filtered = filtered.filter(item => item.SubPembelian?.Barang?.kategori_barang === selectedCategory);
+      filtered = filtered.filter(item => item.Barang?.kategori_barang === selectedCategory);
     }
 
+    // Apply status filter
+    if (selectedStatus) {
+      filtered = filtered.filter(item => item.status_penitipan === selectedStatus);
+    }
+
+    // Apply sorting
     filtered.sort((a, b) => {
       let aValue, bValue;
 
       if (sortBy === 'nama') {
-        aValue = a.SubPembelian?.Barang?.nama || '';
-        bValue = b.SubPembelian?.Barang?.nama || '';
-      } else if (sortBy === 'harga_jual') {
-        aValue = parseFloat(a.SubPembelian?.Pembelian?.total_harga) || 0;
-        bValue = parseFloat(b.SubPembelian?.Pembelian?.total_harga) || 0;
-      } else if (sortBy === 'tanggal_laku') {
-        aValue = new Date(a.SubPembelian?.Pembelian?.tanggal_pelunasan).getTime();
-        bValue = new Date(b.SubPembelian?.Pembelian?.tanggal_pelunasan).getTime();
-      } else if (sortBy === 'komisi_hunter') {
-        aValue = parseFloat(a.komisi_hunter) || 0;
-        bValue = parseFloat(b.komisi_hunter) || 0;
-      } else if (sortBy === 'komisi_reusemart') {
-        aValue = parseFloat(a.komisi_reusemart) || 0;
-        bValue = parseFloat(b.komisi_reusemart) || 0;
-      } else if (sortBy === 'bonus_cepat') {
-        aValue = parseFloat(a.bonus_cepat) || 0;
-        bValue = parseFloat(b.bonus_cepat) || 0;
-      } else if (sortBy === 'id_barang') {
-        aValue = a.SubPembelian?.id_barang || '';
-        bValue = b.SubPembelian?.id_barang || '';
+        aValue = a.Barang?.nama || '';
+        bValue = b.Barang?.nama || '';
+      } else if (sortBy === 'harga') {
+        aValue = parseFloat(a.Barang?.harga) || 0;
+        bValue = parseFloat(b.Barang?.harga) || 0;
+      } else if (sortBy === 'berat') {
+        aValue = parseFloat(a.Barang?.berat) || 0;
+        bValue = parseFloat(b.Barang?.berat) || 0;
+      } else if (sortBy === 'kategori_barang') {
+        aValue = a.Barang?.kategori_barang || '';
+        bValue = b.Barang?.kategori_barang || '';
+      } else if (sortBy === 'status_penitipan') {
+        aValue = a.status_penitipan || '';
+        bValue = b.status_penitipan || '';
+      } else if (sortBy === 'nama_penitip') {
+        aValue = a.Barang?.Penitip?.nama_penitip || '';
+        bValue = b.Barang?.Penitip?.nama_penitip || '';
+      } else if (sortBy === 'id_penitipan') {
+        aValue = a.id_penitipan || '';
+        bValue = b.id_penitipan || '';
+      } else if (sortBy === 'tanggal_awal_penitipan') {
+        aValue = new Date(a.tanggal_awal_penitipan).getTime();
+        bValue = new Date(b.tanggal_awal_penitipan).getTime();
       }
 
       if (typeof aValue === 'string') {
@@ -203,7 +202,11 @@ const LaporanKomisi = () => {
   };
 
   const getUniqueCategories = () => {
-    return [...new Set(transaksiData.map(item => item.SubPembelian?.Barang?.kategori_barang).filter(Boolean))];
+    return [...new Set(penitipanData.map(item => item.Barang?.kategori_barang).filter(Boolean))];
+  };
+
+  const getUniqueStatuses = () => {
+    return [...new Set(penitipanData.map(item => item.status_penitipan).filter(Boolean))];
   };
 
   const formatCurrency = (amount) => {
@@ -217,6 +220,10 @@ const LaporanKomisi = () => {
 
   const formatNumber = (num) => {
     return new Intl.NumberFormat('id-ID').format(num);
+  };
+
+  const formatWeight = (weight) => {
+    return `${parseFloat(weight || 0).toFixed(2)} kg`;
   };
 
   const formatDate = (date) => {
@@ -236,11 +243,12 @@ const LaporanKomisi = () => {
     );
   };
 
-  const showDetailModal = (transaksi) => {
-    setSelectedTransaksi(transaksi);
+  const showDetailModal = (penitipan) => {
+    setSelectedPenitipan(penitipan);
     setShowModal(true);
   };
 
+  // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = filteredData.slice(indexOfFirstItem, indexOfLastItem);
@@ -261,7 +269,7 @@ const LaporanKomisi = () => {
           </p>
           {payload.map((entry, index) => (
             <p key={index} style={{ color: entry.color, margin: '4px 0' }}>
-              Jumlah: {entry.payload.count} transaksi
+              Jumlah: {entry.payload.count} item
               <br />
               Nilai: {formatCurrency(entry.value)}
             </p>
@@ -280,26 +288,28 @@ const LaporanKomisi = () => {
         <Row className="mb-4 align-items-center">
           <Col>
             <h2 className="mb-0 fw-bold" style={{ color: colors.dark }}>
-              Laporan Komisi Bulanan
+              Laporan Stok Gudang
             </h2>
-            <p className="text-muted mt-1">Monitoring komisi dan bonus per produk terjual</p>
+            <p className="text-muted mt-1">Monitoring inventori dan manajemen barang</p>
           </Col>
           <Col xs="auto">
             <div className="d-flex gap-3 align-items-center">
               <Button 
-                onClick={fetchTransaksiData}
+                onClick={fetchPenitipanData}
                 className="view-btn"
                 disabled={loading}
               >
                 Refresh Data
               </Button>
-              <CetakLaporanKomisi
-                filteredData={filteredData}
+              <CetakLaporanStokGudang 
                 summaryData={summaryData}
-                penitipanData={penitipanData}
+                filteredData={filteredData}
                 formatCurrency={formatCurrency}
                 formatNumber={formatNumber}
-                formatDate={formatDate}
+                formatWeight={formatWeight}
+                getStatusBadge={getStatusBadge}
+                statusColors={statusColors}
+                colors={colors}
               />
             </div>
           </Col>
@@ -310,16 +320,17 @@ const LaporanKomisi = () => {
             <div className="spinner-border" style={{ color: colors.primary }} role="status">
               <span className="visually-hidden">Loading...</span>
             </div>
-            <p className="mt-3 text-muted">Memuat data transaksi...</p>
+            <p className="mt-3 text-muted">Memuat data penitipan gudang...</p>
           </div>
         ) : (
           <>
+            {/* Summary Cards */}
             <Row className="mb-4">
               {[
-                { title: 'Total Transaksi', value: formatNumber(summaryData.totalTransaksi), icon: '📦', color: colors.primary },
-                { title: 'Komisi Hunter', value: formatCurrency(summaryData.totalKomisiHunter), icon: '💸', color: colors.secondary },
-                { title: 'Komisi ReUse Mart', value: formatCurrency(summaryData.totalKomisiReusemart), icon: '🏬', color: colors.dark },
-                { title: 'Bonus Penitip', value: formatCurrency(summaryData.totalBonusCepat), icon: '🎁', color: colors.gray }
+                { title: 'Total Barang', value: formatNumber(summaryData.totalPenitipan), icon: '📦', color: colors.primary },
+                { title: 'Total Nilai Stok', value: formatCurrency(summaryData.totalNilaiStok), icon: '💰', color: colors.secondary },
+                { title: 'Total Berat Stok', value: formatWeight(summaryData.totalBeratStok), icon: '⚖️', color: colors.dark },
+                { title: 'Perpanjangan', value: formatNumber(summaryData.penitipanPerpanjangan), icon: '🔄', color: colors.gray }
               ].map((item, index) => (
                 <Col md={3} className="mb-3" key={index}>
                   <Card className="penitipan-card">
@@ -335,12 +346,13 @@ const LaporanKomisi = () => {
               ))}
             </Row>
 
+            {/* Charts */}
             <Row className="mb-4">
               <Col md={6}>
                 <Card className="penitipan-card">
                   <Card.Header style={{ backgroundColor: colors.white, borderBottom: `3px solid ${colors.primary}` }}>
                     <h4 className="mb-0 fw-bold" style={{ color: colors.dark }}>
-                      📊 Distribusi Kategori Produk
+                      📊 Distribusi Kategori Barang
                     </h4>
                   </Card.Header>
                   <Card.Body>
@@ -370,7 +382,7 @@ const LaporanKomisi = () => {
                 <Card className="penitipan-card">
                   <Card.Header style={{ backgroundColor: colors.white, borderBottom: `3px solid ${colors.secondary}` }}>
                     <h4 className="mb-0 fw-bold" style={{ color: colors.dark }}>
-                      📈 Status Transaksi
+                      📈 Status Penitipan
                     </h4>
                   </Card.Header>
                   <Card.Body>
@@ -390,7 +402,7 @@ const LaporanKomisi = () => {
                         <Bar 
                           dataKey="count" 
                           fill={colors.secondary}
-                          name="Jumlah Transaksi"
+                          name="Jumlah Penitipan"
                           radius={[4, 4, 0, 0]}
                         />
                       </BarChart>
@@ -400,6 +412,7 @@ const LaporanKomisi = () => {
               </Col>
             </Row>
 
+            {/* Filters */}
             <Row className="mb-4">
               <Col>
                 <Card className="penitipan-card">
@@ -412,7 +425,7 @@ const LaporanKomisi = () => {
                           </Form.Label>
                           <Form.Control
                             type="text"
-                            placeholder="Cari nama produk atau kode produk..."
+                            placeholder="Cari nama barang, ID penitipan, atau penitip..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="search-input"
@@ -439,6 +452,23 @@ const LaporanKomisi = () => {
                       <Col md={2}>
                         <Form.Group>
                           <Form.Label className="fw-bold" style={{ color: colors.dark }}>
+                            Status Penitipan
+                          </Form.Label>
+                          <Form.Select
+                            value={selectedStatus}
+                            onChange={(e) => setSelectedStatus(e.target.value)}
+                            className="search-input"
+                          >
+                            <option value="">Semua Status</option>
+                            {getUniqueStatuses().map(status => (
+                              <option key={status} value={status}>{status}</option>
+                            ))}
+                          </Form.Select>
+                        </Form.Group>
+                      </Col>
+                      <Col md={2}>
+                        <Form.Group>
+                          <Form.Label className="fw-bold" style={{ color: colors.dark }}>
                             Urutkan
                           </Form.Label>
                           <Form.Select
@@ -446,13 +476,14 @@ const LaporanKomisi = () => {
                             onChange={(e) => setSortBy(e.target.value)}
                             className="search-input"
                           >
-                            <option value="id_barang">Kode Produk</option>
-                            <option value="nama">Nama Produk</option>
-                            <option value="harga_jual">Harga Jual</option>
-                            <option value="tanggal_laku">Tanggal Laku</option>
-                            <option value="komisi_hunter">Komisi Hunter</option>
-                            <option value="komisi_reusemart">Komisi ReUse Mart</option>
-                            <option value="bonus_cepat">Bonus Penitip</option>
+                            <option value="id_penitipan">ID Barang</option>
+                            <option value="nama">Nama Barang</option>
+                            <option value="harga">Harga</option>
+                            <option value="berat">Berat</option>
+                            <option value="kategori_barang">Kategori</option>
+                            <option value="status_penitipan">Status Penitipan</option>
+                            <option value="nama_penitip">Nama Penitip</option>
+                            <option value="tanggal_awal_penitipan">Tanggal Awal</option>
                           </Form.Select>
                         </Form.Group>
                       </Col>
@@ -477,7 +508,8 @@ const LaporanKomisi = () => {
                           onClick={() => {
                             setSearchTerm('');
                             setSelectedCategory('');
-                            setSortBy('nama');
+                            setSelectedStatus('');
+                            setSortBy('id_penitipan');
                             setSortOrder('asc');
                           }}
                           className="w-100"
@@ -491,16 +523,17 @@ const LaporanKomisi = () => {
               </Col>
             </Row>
 
+            {/* Data Table */}
             <Row className="mb-4">
               <Col>
                 <Card className="penitipan-card">
                   <Card.Header style={{ backgroundColor: colors.white, borderBottom: `3px solid ${colors.primary}` }}>
                     <div className="d-flex justify-content-between align-items-center">
                       <h4 className="mb-0 fw-bold" style={{ color: colors.dark }}>
-                        📋 Detail Komisi Per Produk
+                        📋 Detail Penitipan Barang
                       </h4>
                       <span className="text-muted">
-                        Menampilkan {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredData.length)} dari {filteredData.length} transaksi
+                        Menampilkan {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredData.length)} dari {filteredData.length} penitipan
                       </span>
                     </div>
                   </Card.Header>
@@ -509,42 +542,62 @@ const LaporanKomisi = () => {
                       <Table responsive striped className="mb-0">
                         <thead style={{ backgroundColor: `${colors.primary}10` }}>
                           <tr>
-                            <th style={{ color: colors.dark }}>Kode Produk</th>
-                            <th style={{ color: colors.dark }}>Nama Produk</th>
-                            <th style={{ color: colors.dark }}>Harga Jual</th>
-                            <th style={{ color: colors.dark }}>Tanggal Masuk</th>
-                            <th style={{ color: colors.dark }}>Tanggal Laku</th>
-                            <th style={{ color: colors.dark }}>Komisi Hunter</th>
-                            <th style={{ color: colors.dark }}>Komisi ReUse Mart</th>
-                            <th style={{ color: colors.dark }}>Bonus Penitip</th>
+                            <th style={{ color: colors.dark }}>ID Barang</th>
+                            <th style={{ color: colors.dark }}>Nama Barang</th>
+                            <th style={{ color: colors.dark }}>Kategori</th>
+                            <th style={{ color: colors.dark }}>Penitip</th>
+                            <th style={{ color: colors.dark }}>Harga</th>
+                            <th style={{ color: colors.dark }}>Berat</th>
+                            <th style={{ color: colors.dark }}>Tanggal Awal</th>
+                            <th style={{ color: colors.dark }}>Tanggal Akhir</th>
+                            <th style={{ color: colors.dark }}>Batas Pengambilan</th>
+                            <th style={{ color: colors.dark }}>Perpanjangan</th>
+                            <th style={{ color: colors.dark }}>Status</th>
                             <th style={{ color: colors.dark }}>Aksi</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {currentItems.map((transaksi, index) => (
-                            <tr key={transaksi.id_transaksi}>
+                          {currentItems.map((penitipan, index) => (
+                            <tr key={penitipan.id_barang}>
                               <td className="fw-bold" style={{ color: colors.primary }}>
-                                {transaksi.SubPembelian?.id_barang}
+                                {penitipan.id_barang}
                               </td>
                               <td>
-                                <div className="fw-bold">{transaksi.SubPembelian?.Barang?.nama}</div>
-                                <small className="text-muted">
-                                  Kategori: {transaksi.SubPembelian?.Barang?.kategori_barang}
-                                </small>
+                                <div>
+                                  <div className="fw-bold">{penitipan.Barang?.nama}</div>
+                                </div>
+                              </td>
+                              <td>
+                                <Badge style={{ backgroundColor: `${colors.muted}20`}}>
+                                  {penitipan.Barang?.kategori_barang}
+                                </Badge>
+                              </td>
+                              <td>
+                                <div>
+                                  <div className="fw-bold">{penitipan.Barang?.Penitip?.nama_penitip || '-'}</div>
+                                  <small className="text-muted">
+                                    Email: {penitipan.Barang?.Penitip?.Akun?.email || '-'}
+                                  </small>
+                                </div>
                               </td>
                               <td className="fw-bold" style={{ color: colors.primary }}>
-                                {formatCurrency(transaksi.SubPembelian?.Pembelian?.total_harga)}
+                                {formatCurrency(penitipan.Barang?.harga)}
                               </td>
-                              <td>{formatDate(penitipanData[transaksi.SubPembelian?.id_barang])}</td>
-                              <td>{formatDate(transaksi.SubPembelian?.Pembelian?.tanggal_pelunasan)}</td>
-                              <td>{formatCurrency(transaksi.komisi_hunter)}</td>
-                              <td>{formatCurrency(transaksi.komisi_reusemart)}</td>
-                              <td>{formatCurrency(transaksi.bonus_cepat)}</td>
+                              <td>{formatWeight(penitipan.Barang?.berat)}</td>
+                              <td>{formatDate(penitipan.tanggal_awal_penitipan)}</td>
+                              <td>{formatDate(penitipan.tanggal_akhir_penitipan)}</td>
+                              <td>{formatDate(penitipan.tanggal_batas_pengambilan)}</td>
+                              <td>
+                                <Badge bg={penitipan.perpanjangan ? 'success' : 'secondary'}>
+                                  {penitipan.perpanjangan ? 'Ya' : 'Tidak'}
+                                </Badge>
+                              </td>
+                              <td>{getStatusBadge(penitipan.status_penitipan)}</td>
                               <td>
                                 <Button
                                   size="sm"
                                   variant="outline-primary"
-                                  onClick={() => showDetailModal(transaksi)}
+                                  onClick={() => showDetailModal(penitipan)}
                                 >
                                   Lihat Detail
                                 </Button>
@@ -555,10 +608,10 @@ const LaporanKomisi = () => {
                       </Table>
                     ) : (
                       <div className="text-center py-5">
-                        <i className="bi bi-cart-x" style={{ fontSize: '3rem', color: colors.gray }}></i>
-                        <h4 className="mt-3">Tidak ada data transaksi</h4>
+                        <i className="bi bi-box-seam" style={{ fontSize: '3rem', color: colors.gray }}></i>
+                        <h4 className="mt-3">Tidak ada data penitipan</h4>
                         <p className="text-muted">
-                          Tidak ada transaksi yang sesuai dengan filter yang dipilih.
+                          Tidak ada penitipan yang sesuai dengan filter yang dipilih.
                         </p>
                       </div>
                     )}
@@ -578,6 +631,7 @@ const LaporanKomisi = () => {
           </>
         )}
 
+        {/* Detail Modal */}
         <Modal show={showModal} onHide={() => setShowModal(false)} size="lg" centered>
           <Modal.Header 
             closeButton 
@@ -588,77 +642,92 @@ const LaporanKomisi = () => {
             }}
           >
             <Modal.Title className="fw-bold">
-              Detail Transaksi: {selectedTransaksi?.id_transaksi}
+              Detail Penitipan: {selectedPenitipan?.id_penitipan}
             </Modal.Title>
           </Modal.Header>
           <Modal.Body style={{ backgroundColor: colors.white }}>
-            {selectedTransaksi && (
+            {selectedPenitipan && (
               <Row>
                 <Col md={6}>
                   <div className="mb-3">
-                    <strong>ID Transaksi:</strong>
+                    <strong>ID Penitipan:</strong>
                     <div style={{ color: colors.primary, fontSize: '1.1rem', fontWeight: 'bold' }}>
-                      {selectedTransaksi.id_transaksi}
+                      {selectedPenitipan.id_penitipan}
                     </div>
                   </div>
                   <div className="mb-3">
-                    <strong>Kode Produk:</strong>
-                    <div>{selectedTransaksi.SubPembelian?.id_barang}</div>
+                    <strong>ID Barang:</strong>
+                    <div>{selectedPenitipan.id_barang}</div>
                   </div>
                   <div className="mb-3">
-                    <strong>Nama Produk:</strong>
-                    <div>{selectedTransaksi.SubPembelian?.Barang?.nama}</div>
+                    <strong>Nama Barang:</strong>
+                    <div>{selectedPenitipan.Barang?.nama}</div>
                   </div>
                   <div className="mb-3">
                     <strong>Kategori:</strong>
                     <div>
                       <Badge style={{ backgroundColor: colors.secondary }}>
-                        {selectedTransaksi.SubPembelian?.Barang?.kategori_barang}
+                        {selectedPenitipan.Barang?.kategori_barang}
                       </Badge>
                     </div>
                   </div>
                   <div className="mb-3">
-                    <strong>Harga Jual:</strong>
+                    <strong>Harga:</strong>
                     <div style={{ color: colors.primary, fontSize: '1.2rem', fontWeight: 'bold' }}>
-                      {formatCurrency(selectedTransaksi.SubPembelian?.Pembelian?.total_harga)}
+                      {formatCurrency(selectedPenitipan.Barang?.harga)}
                     </div>
+                  </div>
+                  <div className="mb-3">
+                    <strong>Berat:</strong>
+                    <div>{formatWeight(selectedPenitipan.Barang?.berat)}</div>
                   </div>
                 </Col>
                 <Col md={6}>
                   <div className="mb-3">
-                    <strong>Tanggal Masuk:</strong>
-                    <div>{formatDate(penitipanData[selectedTransaksi.SubPembelian?.id_barang])}</div>
+                    <strong>Tanggal Awal Penitipan:</strong>
+                    <div>{formatDate(selectedPenitipan.tanggal_awal_penitipan)}</div>
                   </div>
                   <div className="mb-3">
-                    <strong>Tanggal Laku:</strong>
-                    <div>{formatDate(selectedTransaksi.SubPembelian?.Pembelian?.tanggal_pelunasan)}</div>
+                    <strong>Tanggal Akhir Penitipan:</strong>
+                    <div>{formatDate(selectedPenitipan.tanggal_akhir_penitipan)}</div>
                   </div>
                   <div className="mb-3">
-                    <strong>Komisi Hunter:</strong>
-                    <div>{formatCurrency(selectedTransaksi.komisi_hunter)}</div>
+                    <strong>Batas Pengambilan:</strong>
+                    <div>{formatDate(selectedPenitipan.tanggal_batas_pengambilan)}</div>
                   </div>
                   <div className="mb-3">
-                    <strong>Komisi ReUse Mart:</strong>
-                    <div>{formatCurrency(selectedTransaksi.komisi_reusemart)}</div>
+                    <strong>Perpanjangan:</strong>
+                    <div>
+                      <Badge bg={selectedPenitipan.perpanjangan ? 'success' : 'secondary'}>
+                        {selectedPenitipan.perpanjangan ? 'Ya' : 'Tidak'}
+                      </Badge>
+                    </div>
                   </div>
                   <div className="mb-3">
-                    <strong>Bonus Penitip:</strong>
-                    <div>{formatCurrency(selectedTransaksi.bonus_cepat)}</div>
+                    <strong>Status Penitipan:</strong>
+                    <div>{getStatusBadge(selectedPenitipan.status_penitipan)}</div>
                   </div>
                   <div className="mb-3">
-                    <strong>Status Transaksi:</strong>
-                    <div>{getStatusBadge(selectedTransaksi.SubPembelian?.Pembelian?.status_pembelian)}</div>
+                    <strong>Penitip:</strong>
+                    <div>
+                      <div className="fw-bold">{selectedPenitipan.Barang?.Penitip?.nama_penitip || '-'}</div>
+                      <small className="text-muted">
+                        Email: {selectedPenitipan.Barang?.Penitip?.Akun?.email || '-'}
+                        <br />
+                        Total Poin: {selectedPenitipan.Barang?.Penitip?.total_poin || 0}
+                      </small>
+                    </div>
                   </div>
                 </Col>
-                {selectedTransaksi.SubPembelian?.Barang?.gambar && (
+                {selectedPenitipan.Barang?.gambar && (
                   <Col xs={12} className="mt-3">
-                    <strong>Gambar Produk:</strong>
+                    <strong>Gambar Barang:</strong>
                     <div className="mt-2">
-                      {selectedTransaksi.SubPembelian.Barang.gambar.split(',').map((img, index) => (
+                      {selectedPenitipan.Barang.gambar.split(',').map((img, index) => (
                         <img
                           key={index}
                           src={img.trim()}
-                          alt={`${selectedTransaksi.SubPembelian.Barang.nama} ${index + 1}`}
+                          alt={`${selectedPenitipan.Barang.nama} ${index + 1}`}
                           style={{
                             width: '150px',
                             height: '150px',
@@ -833,6 +902,7 @@ const LaporanKomisi = () => {
           }
         }
         
+        /* Custom scrollbar */
         .table-responsive::-webkit-scrollbar {
           height: 8px;
         }
@@ -851,6 +921,7 @@ const LaporanKomisi = () => {
           background: #026d36;
         }
         
+        /* Animation for loading */
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
@@ -860,6 +931,7 @@ const LaporanKomisi = () => {
           animation: spin 1s linear infinite;
         }
         
+        /* Chart hover effects */
         .recharts-wrapper {
           transition: all 0.3s ease;
         }
@@ -872,4 +944,4 @@ const LaporanKomisi = () => {
   );
 };
 
-export default LaporanKomisi;
+export default LaporanStokGudang;

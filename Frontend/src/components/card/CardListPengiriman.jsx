@@ -6,14 +6,15 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { SchedulePickup } from '../../clients/PenitipanService';
 import { UpdatePengirimanStatus } from '../../clients/PengirimanService';
-import CetakNotaPengambilan from '../../components/pdf/CetakNotaPengambilan';
+import { GetPegawaiById } from '../../clients/PegawaiService';
 import { SendNotification } from '../../clients/NotificationServices';
 
-const CardListPengambilan = ({ transaksi, handleConfirmDiambil, handleLihatDetail, setTransaksiList, pegawai, notaPrinted }) => {
+const CardListPengiriman = ({ transaksi, handleCetakNota, handleConfirmDiambil, handleLihatDetail, setTransaksiList, pegawai}) => {
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [showNotaModal, setShowNotaModal] = useState(false);
+  const [notaPrinted, setNotaPrinted] = useState(transaksi?.cetakNotaDone || false);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedKurir, setSelectedKurir] = useState('');
 
   const formatDate = (dateString) => {
     const options = {
@@ -38,14 +39,10 @@ const CardListPengambilan = ({ transaksi, handleConfirmDiambil, handleLihatDetai
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'Menunggu diambil pembeli':
-        return <Badge bg="warning">Menunggu Diambil</Badge>;
+      case 'Sedang dikirim':
+        return <Badge bg="warning">Sedang dikirim</Badge>;
       case 'Diproses':
         return <Badge bg="info">Diproses</Badge>;
-      case 'Sudah diambil pembeli':
-        return <Badge bg="success">Diambil</Badge>;
-      case 'Hangus':
-        return <Badge bg="danger">Hangus</Badge>;
       default:
         return <Badge bg="secondary">{status}</Badge>;
     }
@@ -66,15 +63,7 @@ const CardListPengambilan = ({ transaksi, handleConfirmDiambil, handleLihatDetai
   const handleCloseScheduleModal = () => {
     setShowScheduleModal(false);
     setSelectedDate(null);
-  };
-
-  const handleCetakNota = () => {
-    setShowNotaModal(true);
-    setTransaksiList((prev) =>
-      prev.map((item) =>
-        item.id_pembelian === transaksi.id_pembelian ? { ...item, cetakNotaDone: true } : item
-      )
-    );
+    setSelectedKurir('');
   };
 
   const handleScheduleSubmit = async () => {
@@ -82,8 +71,8 @@ const CardListPengambilan = ({ transaksi, handleConfirmDiambil, handleLihatDetai
       if (!transaksi.pengiriman?.id_pengiriman) {
         throw new Error('ID pengiriman tidak ditemukan');
       }
-      if (!pegawai?.id_pegawai) {
-        throw new Error('ID pegawai tidak ditemukan');
+      if (!selectedKurir) {
+        throw new Error('Pilih kurir terlebih dahulu');
       }
 
       const startDate = new Date(selectedDate);
@@ -91,28 +80,21 @@ const CardListPengambilan = ({ transaksi, handleConfirmDiambil, handleLihatDetai
         throw new Error('Tanggal mulai tidak valid');
       }
       startDate.setHours(8, 0, 0, 0);
-      const endDate = new Date(startDate);
-      let workDaysAdded = 0;
-      while (workDaysAdded < 2) {
-        endDate.setDate(endDate.getDate() + 1);
-        const dayOfWeek = endDate.getDay();
-        if (dayOfWeek !== 0 && dayOfWeek !== 6) workDaysAdded++;
-      }
+      const endDate = new Date(startDate); // Same as startDate
       endDate.setHours(20, 0, 0, 0);
 
-      await SchedulePickup(transaksi.pengiriman.id_pengiriman, {
+      const scheduleResponse = await SchedulePickup(transaksi.pengiriman.id_pengiriman, {
         tanggal_mulai: startDate.toISOString(),
         tanggal_berakhir: endDate.toISOString(),
       });
 
-      await UpdatePengirimanStatus(transaksi.pengiriman.id_pengiriman, {
-        id_pembelian: transaksi.id_pembelian,
-        id_pengkonfirmasi: pegawai.id_pegawai,
-        tanggal_mulai: startDate.toISOString(),
-        tanggal_berakhir: endDate.toISOString(),
-        status_pengiriman: 'Menunggu diambil pembeli',
-        jenis_pengiriman: 'Ambil di gudang',
-      });
+      const updateResponse = await UpdatePengirimanStatus(
+        transaksi.pengiriman.id_pengiriman,
+        'Sedang dikirim',
+        startDate.toISOString(),
+        endDate.toISOString(),
+        selectedKurir
+      );
 
       setTransaksiList((prev) => {
         const newList = [...prev];
@@ -125,37 +107,50 @@ const CardListPengambilan = ({ transaksi, handleConfirmDiambil, handleLihatDetai
               status_pengiriman: 'Menunggu diambil pembeli',
               tanggal_mulai: startDate.toISOString(),
               tanggal_berakhir: endDate.toISOString(),
-              id_pengkonfirmasi: pegawai.id_pegawai,
+              id_pengkonfirmasi: selectedKurir,
             },
           };
         }
+        
         return newList;
       });
-      
-      
+
       // kirim notif ke pembeli
       const pembeliNotification = { 
         fcmToken: transaksi?.Pembeli?.Akun?.fcm_token,
-        title: "Jadwal Pengambilan",
-        body: `Jadwal pengambilan untuk pembelian ${transaksi?.id_pembelian} sudah ditentukan!`
+        title: "Jadwal Pengiriman",
+        body: `Jadwal Pengiriman untuk pembelian ${transaksi?.id_pembelian} sudah ditentukan!`
       }
       
-      if(pembeliNotification.fcmToken){
+      if(pembeliNotification.fcmToken) {
         await SendNotification(pembeliNotification);
       }
-
+      
       // kirim notif ke penitip
       transaksi?.barang.forEach( async (barang) => {
         const penitipNotification = { 
           fcmToken: barang?.Penitip?.Akun?.fcm_token,
-          title: "Jadwal Pengambilan",
-          body: `Jadwal pengambilan untuk barang ${barang?.id_barang} sudah ditentukan!`
+          title: "Jadwal Pengiriman",
+          body: `Jadwal Pengiriman untuk barang ${barang?.id_barang} sudah ditentukan!`
         }
-        
         if(penitipNotification.fcmToken) {
           await SendNotification(penitipNotification);
         }
       });
+      
+      // kirim notif ke kurir
+      const responseKurir = await GetPegawaiById(selectedKurir);
+      if(responseKurir) {
+        const data = responseKurir.data;
+        const kurirNotification = { 
+          fcmToken: data?.Akun?.fcm_token,
+          title: "Jadwal Pengiriman",
+          body: `Jadwal Pengiriman untuk pembelian ${transaksi?.id_pembelian} sudah ditentukan!`
+        }
+        if(kurirNotification.fcmToken) {
+          await SendNotification(kurirNotification);
+        }
+      }
 
       handleCloseScheduleModal();
       alert('Jadwal pengambilan berhasil disimpan!');
@@ -165,8 +160,10 @@ const CardListPengambilan = ({ transaksi, handleConfirmDiambil, handleLihatDetai
     }
   };
 
-  const isConfirmDisabled = !transaksi.pengiriman?.tanggal_mulai || !transaksi.pengiriman?.tanggal_berakhir;
-  const isHangus = transaksi.pengiriman?.status_pengiriman == 'Hangus';
+  const isConfirmDisabled = 
+    !transaksi.pengiriman?.tanggal_mulai ||
+    !transaksi.pengiriman?.tanggal_berakhir;
+
   return (
     <>
       <Card className="transaksi-card h-100">
@@ -238,7 +235,7 @@ const CardListPengambilan = ({ transaksi, handleConfirmDiambil, handleLihatDetai
               variant="outline-success"
               className="atur-pengiriman-btn"
               onClick={handleOpenConfirmationModal}
-              disabled={isConfirmDisabled || isHangus || transaksi.pengiriman.status_pengiriman == 'Selesai'}
+              disabled={isConfirmDisabled}
             >
               <BsBoxSeam className="me-1" /> Konfirmasi Diambil
             </Button>
@@ -246,9 +243,9 @@ const CardListPengambilan = ({ transaksi, handleConfirmDiambil, handleLihatDetai
               variant="outline-primary"
               className="schedule-btn"
               onClick={handleOpenScheduleModal}
-              disabled={transaksi.pengiriman?.status_pengiriman !== 'Diproses' || isHangus || transaksi.pengiriman.status_pengiriman == 'Selesai'}
+            
             >
-              <BsCalendar className="me-1" /> Atur Jadwal Pengambilan
+              <BsCalendar className="me-1" /> Atur Jadwal Pengiriman
             </Button>
             <Button
               variant="outline-info"
@@ -258,12 +255,15 @@ const CardListPengambilan = ({ transaksi, handleConfirmDiambil, handleLihatDetai
               <BsEye className="me-1" /> Lihat Detail
             </Button>
             <Button
-              variant="outline-primary"
-              className="cetak-nota-btn"
-              onClick={handleCetakNota}
-              disabled={isHangus}
-            >
-              <BsPrinter className="me-1" /> Cetak Nota
+                variant="outline-primary"
+                className="cetak-nota-btn"
+                onClick={() => {
+                  handleCetakNota(transaksi);
+                  setNotaPrinted(true);
+                }}
+                disabled={notaPrinted}
+              >
+                <BsPrinter className="me-1" /> Cetak Nota
             </Button>
           </div>
         </Card.Body>
@@ -275,23 +275,16 @@ const CardListPengambilan = ({ transaksi, handleConfirmDiambil, handleLihatDetai
           handleClose={handleCloseConfirmationModal}
           transaksi={transaksi}
           handleConfirm={handleConfirmDiambil}
-        />
-      )}
-
-      {showNotaModal && (
-        <CetakNotaPengambilan
-          show={showNotaModal}
-          handleClose={() => setShowNotaModal(false)}
-          transaksi={transaksi}
+          handleCetakNota={handleCetakNota}
         />
       )}
 
       <Modal show={showScheduleModal} onHide={handleCloseScheduleModal} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Atur Jadwal Pengambilan</Modal.Title>
+          <Modal.Title>Atur Jadwal Pengiriman</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Form.Group>
+          <Form.Group className="mb-3">
             <Form.Label>Pilih Tanggal Mulai (Senin-Jumat)</Form.Label>
             <DatePicker
               selected={selectedDate}
@@ -305,12 +298,26 @@ const CardListPengambilan = ({ transaksi, handleConfirmDiambil, handleLihatDetai
               placeholderText="Pilih tanggal"
             />
           </Form.Group>
+          <Form.Group>
+            <Form.Label>Pilih Kurir</Form.Label>
+            <Form.Select
+              value={selectedKurir}
+              onChange={(e) => setSelectedKurir(e.target.value)}
+            >
+              <option value="">Pilih Kurir</option>
+              {pegawai.map((kurir) => (
+                <option key={kurir.id_pegawai} value={kurir.id_pegawai}>
+                  {kurir.nama_pegawai}
+                </option>
+              ))}
+            </Form.Select>
+          </Form.Group>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={handleCloseScheduleModal}>
             Batal
           </Button>
-          <Button variant="primary" onClick={handleScheduleSubmit} disabled={!selectedDate}>
+          <Button variant="primary" onClick={handleScheduleSubmit} disabled={!selectedDate || !selectedKurir}>
             Simpan
           </Button>
         </Modal.Footer>
@@ -591,4 +598,4 @@ const CardListPengambilan = ({ transaksi, handleConfirmDiambil, handleLihatDetai
   );
 };
 
-export default CardListPengambilan;
+export default CardListPengiriman;

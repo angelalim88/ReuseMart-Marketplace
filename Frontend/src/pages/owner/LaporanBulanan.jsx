@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Form, Button, Card, Modal, Alert } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button, Card, Modal, Alert, Table } from 'react-bootstrap';
 import { Link } from "react-router-dom";
 import TopNavigation from "../../components/navigation/TopNavigation";
 import { GetAllTransaksi } from "../../clients/TransaksiService";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable'; // Import autoTable correctly
+import CetakLaporanBulanan from '../../components/pdf/CetakLaporanBulanan';
 
 const LaporanBulananPage = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -25,15 +24,18 @@ const LaporanBulananPage = () => {
     weeklyData: [],
     komisiDistribution: []
   });
+  const [annualReportData, setAnnualReportData] = useState({
+    monthlyItemSales: [],
+    monthlySummary: []
+  });
 
-  // Color palette consistent with PenitipanHabisPage
   const colors = {
-    primary: '#028643',    // Ijo Tua
-    secondary: '#FC8A06',  // Orange
-    white: '#FFFFFF',      // Putih
-    dark: '#03081F',       // Item
-    gray: '#D9D9D9',       // Abu-abu
-    muted: '#686868'       // Text muted
+    primary: '#028643',
+    secondary: '#FC8A06',
+    white: '#FFFFFF',
+    dark: '#03081F',
+    gray: '#D9D9D9',
+    muted: '#686868'
   };
 
   const months = [
@@ -61,6 +63,7 @@ const LaporanBulananPage = () => {
 
       setTransaksiData(filteredData);
       processReportData(filteredData);
+      processAnnualReportData(data);
     } catch (error) {
       console.error('Error fetching transaksi data:', error);
     }
@@ -164,6 +167,50 @@ const LaporanBulananPage = () => {
     });
   };
 
+  const processAnnualReportData = (data) => {
+    if (!data || data.length === 0) {
+      setAnnualReportData({
+        monthlyItemSales: [],
+        monthlySummary: []
+      });
+      return;
+    }
+
+    const monthlyMap = {};
+    months.forEach((month, index) => {
+      monthlyMap[index + 1] = {
+        bulan: month,
+        itemSold: 0,
+        totalPendapatan: 0,
+        totalTransaksi: 0
+      };
+    });
+
+    data.forEach(transaksi => {
+      const tanggal = new Date(transaksi.SubPembelian?.Pembelian?.tanggal_pelunasan);
+      if (tanggal.getFullYear() === selectedYear) {
+        const month = tanggal.getMonth() + 1;
+        monthlyMap[month].itemSold += 1;
+        monthlyMap[month].totalPendapatan += parseFloat(transaksi.pendapatan || 0);
+        monthlyMap[month].totalTransaksi += 1;
+      }
+    });
+
+    const monthlyItemSales = Object.values(monthlyMap);
+    const monthlySummary = Object.values(monthlyMap).map(item => ({
+      bulan: item.bulan,
+      itemSold: item.itemSold,
+      totalPendapatan: item.totalPendapatan,
+      totalTransaksi: item.totalTransaksi,
+      rataRataPendapatan: item.totalTransaksi > 0 ? item.totalPendapatan / item.totalTransaksi : 0
+    }));
+
+    setAnnualReportData({
+      monthlyItemSales,
+      monthlySummary
+    });
+  };
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -175,106 +222,6 @@ const LaporanBulananPage = () => {
 
   const formatNumber = (num) => {
     return new Intl.NumberFormat('id-ID').format(num);
-  };
-
-  const generatePDF = () => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.width;
-    
-    // Apply autoTable to jsPDF instance
-    doc.autoTable = autoTable;
-
-    // Header
-    doc.setFontSize(20);
-    doc.setTextColor(2, 134, 67);
-    doc.text('LAPORAN PENJUALAN BULANAN', pageWidth / 2, 20, { align: 'center' });
-    
-    doc.setFontSize(14);
-    doc.setTextColor(3, 8, 31);
-    doc.text(`${months[selectedMonth - 1]} ${selectedYear}`, pageWidth / 2, 30, { align: 'center' });
-    
-    // Summary Box
-    doc.setDrawColor(217, 217, 217);
-    doc.setFillColor(249, 249, 249);
-    doc.roundedRect(15, 40, pageWidth - 30, 60, 3, 3, 'FD');
-    
-    doc.setFontSize(12);
-    doc.setTextColor(3, 8, 31);
-    
-    doc.text('RINGKASAN KEUANGAN', 20, 50);
-    doc.text(`Total Pendapatan: ${formatCurrency(reportData.totalPendapatan)}`, 20, 60);
-    doc.text(`Komisi Reusemart: ${formatCurrency(reportData.totalKomisiReusemart)}`, 20, 70);
-    doc.text(`Komisi Hunter: ${formatCurrency(reportData.totalKomisiHunter)}`, 20, 80);
-    doc.text(`Bonus Cepat: ${formatCurrency(reportData.totalBonusCepat)}`, 20, 90);
-    
-    doc.setTextColor(2, 134, 67);
-    doc.setFontSize(14);
-    doc.text(`KEUNTUNGAN BERSIH: ${formatCurrency(reportData.keuntunganBersih)}`, pageWidth / 2 + 10, 60);
-    
-    doc.setTextColor(3, 8, 31);
-    doc.setFontSize(12);
-    doc.text(`Total Transaksi: ${formatNumber(reportData.totalTransaksi)}`, pageWidth / 2 + 10, 75);
-    doc.text(`Rata-rata per Transaksi: ${formatCurrency(reportData.rataRataPendapatan)}`, pageWidth / 2 + 10, 85);
-    
-    // Daily performance table
-    if (reportData.dailyData.length > 0) {
-      doc.text('PERFORMA HARIAN', 20, 120);
-      
-      const tableData = reportData.dailyData.map(day => [
-        day.hari.toString(),
-        formatCurrency(day.pendapatan),
-        formatCurrency(day.keuntungan),
-        day.transaksi.toString()
-      ]);
-      
-      doc.autoTable({
-        startY: 125,
-        head: [['Tanggal', 'Pendapatan', 'Keuntungan', 'Transaksi']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: { 
-          fillColor: [2, 134, 67],
-          textColor: [255, 255, 255]
-        },
-        margin: { left: 20, right: 20 }
-      });
-    }
-    
-    // Weekly summary
-    if (reportData.weeklyData.length > 0) {
-      const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 20 : 180;
-      
-      doc.text('RINGKASAN MINGGUAN', 20, finalY);
-      
-      const weeklyTableData = reportData.weeklyData.map(week => [
-        week.minggu,
-        formatCurrency(week.pendapatan),
-        formatCurrency(week.keuntungan),
-        week.transaksi.toString()
-      ]);
-      
-      doc.autoTable({
-        startY: finalY + 5,
-        head: [['Periode', 'Pendapatan', 'Keuntungan', 'Transaksi']],
-        body: weeklyTableData,
-        theme: 'striped',
-        headStyles: { 
-          fillColor: [252, 138, 6],
-          textColor: [255, 255, 255]
-        },
-        margin: { left: 20, right: 20 }
-      });
-    }
-    
-    // Footer
-    const footerY = doc.internal.pageSize.height - 20;
-    doc.setFontSize(10);
-    doc.setTextColor(128, 128, 128);
-    doc.text(`Laporan dibuat pada: ${new Date().toLocaleDateString('id-ID')}`, 20, footerY);
-    doc.text('Reusemart - Sistem Laporan Penjualan', pageWidth - 20, footerY, { align: 'right' });
-    
-    doc.save(`Laporan-Penjualan-${months[selectedMonth - 1]}-${selectedYear}.pdf`);
-    setShowModal(false);
   };
 
   const CustomTooltip = ({ active, payload, label }) => {
@@ -292,7 +239,7 @@ const LaporanBulananPage = () => {
           </p>
           {payload.map((entry, index) => (
             <p key={index} style={{ color: entry.color, margin: '4px 0' }}>
-              {entry.name}: {formatCurrency(entry.value)}
+              {entry.name}: {entry.name.includes('Pendapatan') ? formatCurrency(entry.value) : formatNumber(entry.value)}
             </p>
           ))}
         </div>
@@ -343,7 +290,7 @@ const LaporanBulananPage = () => {
                 onClick={() => setShowModal(true)}
                 className="view-btn"
               >
-                📄 Export PDF
+                Export PDF
               </Button>
             </div>
           </Col>
@@ -564,6 +511,77 @@ const LaporanBulananPage = () => {
                     </Card>
                   </Col>
                 </Row>
+
+                <Row className="mb-4">
+                  <Col>
+                    <Card className="penitipan-card">
+                      <Card.Header style={{ backgroundColor: colors.white, borderBottom: `3px solid ${colors.primary}` }}>
+                        <h4 className="mb-0 fw-bold" style={{ color: colors.dark }}>
+                          📅 Insight Penjualan Tahunan {selectedYear}
+                        </h4>
+                      </Card.Header>
+                      <Card.Body>
+                        <Row>
+                          <Col md={6}>
+                            <h5 className="fw-bold" style={{ color: colors.dark, marginBottom: '20px' }}>
+                              Jumlah Barang Terjual per Bulan
+                            </h5>
+                            <ResponsiveContainer width="100%" height={300}>
+                              <BarChart data={annualReportData.monthlyItemSales}>
+                                <CartesianGrid strokeDasharray="3 3" stroke={colors.gray} />
+                                <XAxis 
+                                  dataKey="bulan" 
+                                  stroke={colors.dark}
+                                  tick={{ fill: colors.dark }}
+                                />
+                                <YAxis 
+                                  stroke={colors.dark}
+                                  tick={{ fill: colors.dark }}
+                                  tickFormatter={(value) => formatNumber(value)}
+                                />
+                                <Tooltip content={<CustomTooltip />} />
+                                <Legend />
+                                <Bar 
+                                  dataKey="itemSold" 
+                                  fill={colors.primary}
+                                  name="Barang Terjual"
+                                  radius={[4, 4, 0, 0]}
+                                />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </Col>
+                          <Col md={6}>
+                            <h5 className="fw-bold" style={{ color: colors.dark, marginBottom: '20px' }}>
+                              Ringkasan Bulanan
+                            </h5>
+                            <Table striped bordered hover responsive>
+                              <thead>
+                                <tr style={{ backgroundColor: `${colors.primary}20`, color: colors.dark }}>
+                                  <th>Bulan</th>
+                                  <th>Barang Terjual</th>
+                                  <th>Total Pendapatan</th>
+                                  <th>Total Transaksi</th>
+                                  <th>Rata-rata/Transaksi</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {annualReportData.monthlySummary.map((item, index) => (
+                                  <tr key={index}>
+                                    <td>{item.bulan}</td>
+                                    <td>{formatNumber(item.itemSold)}</td>
+                                    <td>{formatCurrency(item.totalPendapatan)}</td>
+                                    <td>{formatNumber(item.totalTransaksi)}</td>
+                                    <td>{formatCurrency(item.rataRataPendapatan)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </Table>
+                          </Col>
+                        </Row>
+                      </Card.Body>
+                    </Card>
+                  </Col>
+                </Row>
               </>
             ) : (
               <Row>
@@ -607,7 +625,7 @@ const LaporanBulananPage = () => {
                 Laporan Penjualan {months[selectedMonth - 1]} {selectedYear}
               </h4>
               <p style={{ color: colors.dark, marginBottom: '30px' }}>
-                Laporan akan mencakup ringkasan keuangan, performa harian, dan analisis mingguan.
+                Laporan akan mencakup ringkasan keuangan, performa harian, analisis mingguan, dan insight tahunan.
               </p>
               
               <div style={{ 
@@ -643,12 +661,16 @@ const LaporanBulananPage = () => {
             >
               Batal
             </Button>
-            <Button 
-              onClick={generatePDF}
-              className="view-btn"
-            >
-              📥 Download PDF
-            </Button>
+            <CetakLaporanBulanan 
+              reportData={reportData}
+              annualReportData={annualReportData}
+              selectedMonth={selectedMonth}
+              selectedYear={selectedYear}
+              months={months}
+              formatCurrency={formatCurrency}
+              formatNumber={formatNumber}
+              setShowModal={setShowModal}
+            />
           </Modal.Footer>
         </Modal>
       </div>

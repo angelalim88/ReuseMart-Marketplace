@@ -71,7 +71,7 @@ const EditProfilePenitipModal = ({data, onUpdate}) => {
                     <img
                         src={fotoPreview || 'http://localhost:3000/uploads/profile_picture/default.jpg'}
                         alt="Foto Profil"
-                        className="rounded-circle mx-auto"
+                        className="rounded-circle mx-auto w-100"
                         style={{
                             maxWidth:'80px',
                             minWidth: '40px',

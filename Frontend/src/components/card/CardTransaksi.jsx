@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, Badge, Button } from 'react-bootstrap';
 
-const CardTransaksiPenitipan = ({ penitipan, handleLihatDetail, pegawai }) => {
+const CardTransaksi = ({ transaksi, handleLihatDetail }) => {
   const formatDate = (dateString) => {
     const options = { day: '2-digit', month: 'long', year: 'numeric' };
-    return new Date(dateString).toLocaleDateString('id-ID', options);
+    return dateString ? new Date(dateString).toLocaleDateString('id-ID', options) : '-';
   };
 
   const formatRupiah = (angka) => {
@@ -17,22 +17,20 @@ const CardTransaksiPenitipan = ({ penitipan, handleLihatDetail, pegawai }) => {
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'Dalam masa penitipan':
-        return <Badge bg="info">Dalam Penitipan</Badge>;
-      case 'Terjual':
-        return <Badge bg="primary">Terjual</Badge>;
-      case 'Dibeli':
-        return <Badge bg="primary">Dibeli</Badge>;
-      case 'Didonasikan':
-        return <Badge bg="success">Didonasikan</Badge>;
-      case 'Menunggu didonasikan':
-        return <Badge bg="warning">Menunggu Didonasikan</Badge>;
+      case 'Menunggu diambil pembeli':
+        return <Badge bg="warning">Menunggu Diambil</Badge>;
+      case 'Diproses':
+        return <Badge bg="info">Diproses</Badge>;
+      case 'Transaksi selesai':
+        return <Badge bg="success">Selesai</Badge>;
+      case 'Hangus':
+        return <Badge bg="danger">Hangus</Badge>;
       default:
         return <Badge bg="secondary">{status}</Badge>;
     }
   };
 
-  const baseUrl = 'http://localhost:3000/uploads/barang';
+  const baseUrl = 'http://localhost:3000/uploads/barang/';
 
   return (
     <>
@@ -40,22 +38,24 @@ const CardTransaksiPenitipan = ({ penitipan, handleLihatDetail, pegawai }) => {
         <Card.Body>
           <div className="row mb-3">
             <div className="col-6 transaksi-info">
-              <small className="text-muted transaksi-id">{penitipan.id_penitipan}</small>
-              <div className="status-badge mt-1">{getStatusBadge(penitipan.status_penitipan)}</div>
+              <small className="text-muted transaksi-id">{transaksi.id_pembelian}</small>
+              <div className="status-badge mt-1">{getStatusBadge(transaksi.pengiriman?.status_pengiriman)}</div>
             </div>
             <div className="col-6 text-end date-info">
-              <div className="text-muted small">Tanggal Penitipan</div>
-              <div className="fw-medium" style={{ fontSize: '0.75rem' }}>{formatDate(penitipan.tanggal_awal_penitipan)}</div>
+              <div className="text-muted small">Tanggal Pembelian</div>
+              <div className="fw-medium" style={{ fontSize: '0.75rem' }}>
+                {formatDate(transaksi.tanggal_pembelian)}
+              </div>
             </div>
           </div>
 
           <div className="barang-info-container mb-3">
             <div className="d-flex align-items-center">
-              {penitipan.Barang?.gambar ? (
+              {transaksi.barang?.[0]?.gambar ? (
                 <div className="me-3" style={{ width: '60px', height: '60px', overflow: 'hidden' }}>
                   <img
-                    src={penitipan.Barang.gambar.split(',')[0]}
-                    alt={penitipan.Barang.nama}
+                    src={`${baseUrl}${transaksi.barang[0].gambar.split(',')[0]}`}
+                    alt={transaksi.barang[0].nama}
                     className="barang-image rounded"
                   />
                 </div>
@@ -68,21 +68,25 @@ const CardTransaksiPenitipan = ({ penitipan, handleLihatDetail, pegawai }) => {
                 </div>
               )}
               <div>
-                <h6 className="barang-name mb-1">{penitipan.Barang?.nama || '-'}</h6>
-                <small className="text-muted">{penitipan.Barang?.id_barang || '-'}</small>
+                <h6 className="barang-name mb-1">{transaksi.barang?.[0]?.nama || '-'}</h6>
+                <small className="text-muted">
+                  {transaksi.barang?.length > 1
+                    ? `${transaksi.barang.length} barang`
+                    : transaksi.barang?.[0]?.id_barang || '-'}
+                </small>
               </div>
             </div>
           </div>
 
           <div className="d-flex justify-content-between mb-3">
             <div>
-              <div className="text-muted small">Penitip</div>
-              <div className="fw-medium">{penitipan.Barang?.Penitip?.nama_penitip || '-'}</div>
+              <div className="text-muted small">Pembeli</div>
+              <div className="fw-medium">{transaksi.Pembeli?.nama || '-'}</div>
             </div>
             <div className="text-end">
-              <div className="text-muted small">Harga</div>
+              <div className="text-muted small">Total Bayar</div>
               <div className="fw-bold" style={{ color: '#028643' }}>
-                {formatRupiah(penitipan.Barang?.harga || 0)}
+                {formatRupiah(transaksi.total_bayar || 0)}
               </div>
             </div>
           </div>
@@ -91,7 +95,7 @@ const CardTransaksiPenitipan = ({ penitipan, handleLihatDetail, pegawai }) => {
             <Button
               variant="outline-primary"
               className="lihat-detail-btn"
-              onClick={() => handleLihatDetail(penitipan)}
+              onClick={() => handleLihatDetail(transaksi)}
             >
               Lihat Detail
             </Button>
@@ -99,40 +103,7 @@ const CardTransaksiPenitipan = ({ penitipan, handleLihatDetail, pegawai }) => {
         </Card.Body>
       </Card>
 
-
       <style jsx>{`
-        .transaksi-info {
-          display: flex;
-          flex-direction: column; 
-          padding-right: 10px; 
-        }
-
-        .transaksi-id {
-          color: #686868;
-          font-size: 0.9rem;
-          margin-bottom: 4px; 
-        }
-
-        .status-badge {
-          display: inline-block; 
-          max-width: 100%;
-          overflow: hidden;
-          text-overflow: ellipsis; 
-          white-space: nowrap; 
-          font-size: 0.85rem; 
-        }
-
-        .status-badge .badge {
-          display: inline-block;
-          max-width: 100%; 
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-
-        .date-info {
-          padding-left: 10px;
-        }
         .transaksi-card {
           border-radius: 8px;
           border-color: #E7E7E7;
@@ -145,9 +116,37 @@ const CardTransaksiPenitipan = ({ penitipan, handleLihatDetail, pegawai }) => {
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
+        .transaksi-info {
+          display: flex;
+          flex-direction: column;
+          padding-right: 10px;
+        }
+
         .transaksi-id {
           color: #686868;
           font-size: 0.9rem;
+          margin-bottom: 4px;
+        }
+
+        .status-badge {
+          display: inline-block;
+          max-width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-size: 0.85rem;
+        }
+
+        .status-badge .badge {
+          display: inline-block;
+          max-width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .date-info {
+          padding-left: 10px;
         }
 
         .barang-name {
@@ -176,37 +175,19 @@ const CardTransaksiPenitipan = ({ penitipan, handleLihatDetail, pegawai }) => {
           font-size: 0.7rem;
         }
 
-        .cetak-nota-btn {
+        .lihat-detail-btn {
           border-color: #028643;
           color: #028643;
         }
 
-        .cetak-nota-btn:hover {
+        .lihat-detail-btn:hover {
           background-color: #028643;
           color: white;
           border-color: #028643;
-        }
-
-        .atur-pengiriman-btn {
-          border-color: #198754;
-          color: #198754;
-        }
-
-        .atur-pengiriman-btn:hover {
-          background-color: #198754;
-          color: white;
-          border-color: #198754;
-        }
-
-        .atur-pengiriman-btn:disabled {
-          border-color: #6c757d;
-          color: #6c757d;
-          cursor: not-allowed;
-          opacity: 0.6;
         }
       `}</style>
     </>
   );
 };
 
-export default CardTransaksiPenitipan;
+export default CardTransaksi;

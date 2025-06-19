@@ -9,30 +9,28 @@ import {
   Spinner,
   Table,
   Nav,
+  Modal,
 } from 'react-bootstrap';
 import {
   BsSearch,
   BsExclamationTriangle,
-  BsPrinter,
   BsFilter,
   BsCalendar,
   BsGrid,
   BsListUl,
 } from 'react-icons/bs';
-import { GetAllPenitipan } from '../../clients/PenitipanService';
-import { GetAllPenitip } from '../../clients/PenitipService';
+import { apiSubPembelian } from '../../clients/SubPembelianService';
+import { apiPembeli } from '../../clients/PembeliService';
 import { GetPegawaiByAkunId } from '../../clients/PegawaiService';
 import { decodeToken } from '../../utils/jwtUtils';
 import RoleSidebar from '../../components/navigation/Sidebar';
 import ToastNotification from '../../components/toast/ToastNotification';
 import PaginationComponent from '../../components/pagination/Pagination';
-import CetakNotaModal from '../../components/pdf/NotaPenitipanPdf';
-import TransaksiCard from '../../components/card/CardTransaksiPenitipan';
+import CardTransaksi from '../../components/card/CardTransaksi.jsx';
 
 const DaftarTransaksi = () => {
-  const [penitipanList, setPenitipanList] = useState([]);
-  const [filteredPenitipan, setFilteredPenitipan] = useState([]);
-  const [penitipList, setPenitipList] = useState([]);
+  const [transaksiList, setTransaksiList] = useState([]);
+  const [filteredTransaksi, setFilteredTransaksi] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -44,20 +42,19 @@ const DaftarTransaksi = () => {
   const [selectedView, setSelectedView] = useState('all');
   const [akun, setAkun] = useState(null);
   const [pegawai, setPegawai] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [selectedPenitipan, setSelectedPenitipan] = useState(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
+  const [detailTransaksi, setDetailTransaksi] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   const statusViews = [
-    { id: 'all', name: 'Semua Penitipan' },
-    { id: 'Dalam masa penitipan', name: 'Dalam Penitipan' },
-    { id: 'Terjual', name: 'Terjual' },
-    { id: 'Didonasikan', name: 'Didonasikan' },
-    { id: 'Menunggu didonasikan', name: 'Menunggu Didonasikan' },
-    { id: 'Menunggu diambil', name: 'Menunggu Diambil' },
+    { id: 'all', name: 'Semua Transaksi' },
+    { id: 'Menunggu diambil pembeli', name: 'Menunggu Diambil' },
+    { id: 'Diproses', name: 'Diproses' },
+    { id: 'Transaksi selesai', name: 'Selesai' },
+    { id: 'Hangus', name: 'Hangus' },
   ];
 
   const showNotification = (message, type = 'success') => {
@@ -71,17 +68,10 @@ const DaftarTransaksi = () => {
     const fetchUserData = async () => {
       try {
         const token = localStorage.getItem('authToken');
-        if (!token) {
-          throw new Error('Token tidak ditemukan');
-        }
-
+        if (!token) throw new Error('Token tidak ditemukan');
         const decoded = decodeToken(token);
         setAkun(decoded);
-
-        if (!decoded?.id) {
-          throw new Error('Invalid token structure');
-        }
-
+        if (!decoded?.id) throw new Error('Invalid token structure');
         if (decoded.role === 'Pegawai Gudang') {
           const response = await GetPegawaiByAkunId(decoded.id);
           setPegawai(response.data);
@@ -98,33 +88,35 @@ const DaftarTransaksi = () => {
   }, []);
 
   useEffect(() => {
-    filterPenitipanData();
-  }, [selectedView, penitipanList, searchTerm, startDate, endDate]);
+    filterTransaksiData();
+  }, [selectedView, transaksiList, searchTerm, startDate, endDate]);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredPenitipan.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredPenitipan.length / itemsPerPage);
+  const currentItems = filteredTransaksi.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredTransaksi.length / itemsPerPage);
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [penitipanResponse, penitipResponse] = await Promise.all([
-        GetAllPenitipan(),
-        GetAllPenitip(),
-      ]);
-
-      const filteredPenitipan = penitipanResponse.data.filter(
-        (item) => item.Barang && item.Barang.status_qc === 'Lulus'
+      const response = await apiSubPembelian.getAllSubPembelian();
+      const transaksiWithPembeli = await Promise.all(
+        response.map(async (transaksi) => {
+          try {
+            const pembeliResponse = await apiPembeli.getPembeliById(transaksi.id_pembeli);
+            return { ...transaksi, Pembeli: pembeliResponse.pembeli };
+          } catch (error) {
+            console.error(`Error fetching pembeli for ${transaksi.id_pembeli}:`, error);
+            return { ...transaksi, Pembeli: null };
+          }
+        })
       );
-
-      setPenitipanList(filteredPenitipan);
-      setPenitipList(penitipResponse.data);
+      setTransaksiList(transaksiWithPembeli);
     } catch (error) {
       console.error('Error fetching data:', error);
-      setError('Gagal memuat data. Silakan coba lagi nanti.');
-      showNotification('Gagal memuat data. Silakan coba lagi nanti.', 'danger');
+      setError('Gagal memuat data transaksi. Silakan coba lagi nanti.');
+      showNotification('Gagal memuat data transaksi. Silakan coba lagi nanti.', 'danger');
     } finally {
       setLoading(false);
     }
@@ -132,87 +124,68 @@ const DaftarTransaksi = () => {
 
   const formatDate = (dateString) => {
     const options = { day: '2-digit', month: 'long', year: 'numeric' };
-    return new Date(dateString).toLocaleDateString('id-ID', options);
+    return dateString ? new Date(dateString).toLocaleDateString('id-ID', options) : '-';
   };
 
-  const filterPenitipanData = () => {
-    let filtered = [...penitipanList];
+  const formatRupiah = (angka) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+    }).format(angka);
+  };
+
+  const filterTransaksiData = () => {
+    let filtered = [...transaksiList];
 
     if (selectedView !== 'all') {
-      filtered = filtered.filter((item) => item.status_penitipan === selectedView);
+      filtered = filtered.filter((item) => item.pengiriman?.status_pengiriman === selectedView);
     }
 
     if (searchTerm) {
       filtered = filtered.filter(
         (item) =>
-          (item.id_penitipan &&
-            item.id_penitipan.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (item.Barang &&
-            item.Barang.nama &&
-            item.Barang.nama.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (item.Barang &&
-            item.Barang.id_barang &&
-            item.Barang.id_barang.toLowerCase().includes(searchTerm.toLowerCase())) ||
-          (item.Barang &&
-            item.Barang.Penitip &&
-            item.Barang.Penitip.nama_penitip &&
-            item.Barang.Penitip.nama_penitip.toLowerCase().includes(searchTerm.toLowerCase()))
+          (item.id_pembelian &&
+            item.id_pembelian.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (item.Pembeli?.nama &&
+            item.Pembeli.nama.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (item.barang?.some((b) =>
+            b.nama.toLowerCase().includes(searchTerm.toLowerCase())
+          )) ||
+          (item.barang?.some((b) =>
+            b.id_barang.toLowerCase().includes(searchTerm.toLowerCase())
+          ))
       );
     }
 
-    if (startDate && endDate) {
-      const startDateTime = new Date(startDate).setHours(0, 0, 0, 0);
-      const endDateTime = new Date(endDate).setHours(23, 59, 59, 999);
-
+    if (startDate || endDate) {
       filtered = filtered.filter((item) => {
-        const itemDate = new Date(item.tanggal_awal_penitipan).getTime();
+        const itemDate = new Date(item.tanggal_pembelian).setHours(0, 0, 0, 0);
+        const startDateTime = startDate ? new Date(startDate).setHours(0, 0, 0, 0) : -Infinity;
+        const endDateTime = endDate ? new Date(endDate).setHours(23, 59, 59, 999) : Infinity;
         return itemDate >= startDateTime && itemDate <= endDateTime;
-      });
-    } else if (startDate) {
-      const startDateTime = new Date(startDate).setHours(0, 0, 0, 0);
-      filtered = filtered.filter((item) => {
-        const itemDate = new Date(item.tanggal_awal_penitipan).getTime();
-        return itemDate >= startDateTime;
-      });
-    } else if (endDate) {
-      const endDateTime = new Date(endDate).setHours(23, 59, 59, 999);
-      filtered = filtered.filter((item) => {
-        const itemDate = new Date(item.tanggal_awal_penitipan).getTime();
-        return itemDate <= endDateTime;
       });
     }
 
-    setFilteredPenitipan(filtered);
+    setFilteredTransaksi(filtered);
     setCurrentPage(1);
   };
 
-  const handleCetakNota = (penitipan) => {
-    setSelectedPenitipan(penitipan);
-    setShowModal(true);
-    // Update penitipan to mark nota as printed
-    setPenitipanList((prev) =>
-      prev.map((item) =>
-        item.id_penitipan === penitipan.id_penitipan
-          ? { ...item, cetakNotaDone: true }
-          : item
-      )
-    );
+  const handleLihatDetail = (transaksi) => {
+    setDetailTransaksi(transaksi);
+    setShowDetailModal(true);
   };
 
   const getStatusBadge = (status) => {
     switch (status) {
-      case 'Dalam masa penitipan':
-        return <Badge bg="info">Dalam Penitipan</Badge>;
-      case 'Terjual':
-        return <Badge bg="primary">Terjual</Badge>;
-      case 'Dibeli':
-        return <Badge bg="primary">Dibeli</Badge>;
-      case 'Didonasikan':
-        return <Badge bg="success">Didonasikan</Badge>;
-      case 'Menunggu didonasikan':
-        return <Badge bg="warning">Menunggu Didonasikan</Badge>;
-       case 'Menunggu diambil':
-        return <Badge bg="warning">Menunggu Diambil</Badge>;  
+      case 'Menunggu diambil pembeli':
+        return <Badge bg="warning">Menunggu Diambil</Badge>;
+      case 'Diproses':
+        return <Badge bg="info">Diproses</Badge>;
+      case 'Transaksi selesai':
+        return <Badge bg="success">Selesai</Badge>;
+      case 'Hangus':
+        return <Badge bg="danger">Hangus</Badge>;
       default:
         return <Badge bg="secondary">{status}</Badge>;
     }
@@ -227,21 +200,14 @@ const DaftarTransaksi = () => {
     setEndDate('');
   };
 
-  const formatRupiah = (angka) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(angka);
-  };
+  const baseUrl = 'http://localhost:3000/uploads/barang/';
 
-  const renderTransaksiCard = (penitipan) => {
+  const renderTransaksiCard = (transaksi) => {
     return (
-      <Col xs={12} md={6} lg={4} key={penitipan.id_penitipan} className="mb-4">
-        <TransaksiCard
-          penitipan={penitipan}
-          handleCetakNota={handleCetakNota}
-          pegawai={pegawai}
+      <Col xs={12} md={6} lg={4} key={transaksi.id_pembelian} className="mb-4">
+        <CardTransaksi
+          transaksi={transaksi}
+          handleLihatDetail={handleLihatDetail}
         />
       </Col>
     );
@@ -259,7 +225,7 @@ const DaftarTransaksi = () => {
       );
     }
 
-    if (filteredPenitipan.length === 0) {
+    if (filteredTransaksi.length === 0) {
       return (
         <div className="text-center py-5">
           <BsExclamationTriangle style={{ fontSize: '3rem', color: '#D9D9D9' }} />
@@ -269,62 +235,64 @@ const DaftarTransaksi = () => {
     }
 
     if (viewMode === 'grid') {
-      return <Row>{currentItems.map((penitipan) => renderTransaksiCard(penitipan))}</Row>;
+      return <Row>{currentItems.map((transaksi) => renderTransaksiCard(transaksi))}</Row>;
     } else {
       return (
         <div className="table-responsive">
           <Table hover className="align-middle">
             <thead>
               <tr>
-                <th>ID Penitipan</th>
+                <th>ID Pembelian</th>
                 <th>Barang</th>
-                <th>Penitip</th>
-                <th>Tanggal Penitipan</th>
-                <th>Harga</th>
+                <th>Pembeli</th>
+                <th>Tanggal Pembelian</th>
+                <th>Total Bayar</th>
                 <th>Status</th>
                 <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {currentItems.map((penitipan) => (
-                <tr key={penitipan.id_penitipan}>
-                  <td>{penitipan.id_penitipan}</td>
+              {currentItems.map((transaksi) => (
+                <tr key={transaksi.id_pembelian}>
+                  <td>{transaksi.id_pembelian}</td>
                   <td>
                     <div className="d-flex align-items-center">
-                      {penitipan.Barang?.gambar ? (
+                      {transaksi.barang?.[0]?.gambar ? (
                         <div
                           className="me-2"
                           style={{ width: '40px', height: '40px', overflow: 'hidden' }}
                         >
                           <img
-                            src={penitipan.Barang.gambar.split(',')[0]}
-                            alt={penitipan.Barang.nama}
+                            src={`${baseUrl}${transaksi.barang[0].gambar.split(',')[0]}`}
+                            alt={transaksi.barang[0].nama}
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                             className="rounded"
                           />
                         </div>
                       ) : null}
                       <div>
-                        <div className="fw-bold">{penitipan.Barang?.nama || '-'}</div>
-                        <small className="text-muted">{penitipan.Barang?.id_barang || '-'}</small>
+                        <div className="fw-bold">{transaksi.barang?.[0]?.nama || '-'}</div>
+                        <small className="text-muted">
+                          {transaksi.barang?.length > 1
+                            ? `${transaksi.barang.length} barang`
+                            : transaksi.barang?.[0]?.id_barang || '-'}
+                        </small>
                       </div>
                     </div>
                   </td>
-                  <td>{penitipan.Barang?.Penitip?.nama_penitip || '-'}</td>
-                  <td>{formatDate(penitipan.tanggal_awal_penitipan)}</td>
+                  <td>{transaksi.Pembeli?.nama || '-'}</td>
+                  <td>{formatDate(transaksi.tanggal_pembelian)}</td>
                   <td className="fw-bold" style={{ color: '#028643' }}>
-                    {formatRupiah(penitipan.Barang?.harga || 0)}
+                    {formatRupiah(transaksi.total_bayar || 0)}
                   </td>
-                  <td>{getStatusBadge(penitipan.status_penitipan)}</td>
+                  <td>{getStatusBadge(transaksi.pengiriman?.status_pengiriman)}</td>
                   <td>
                     <Button
                       variant="outline-primary"
                       size="sm"
-                      className="cetak-nota-btn"
-                      onClick={() => handleCetakNota(penitipan)}
-                      disabled={penitipan.cetakNotaDone}
+                      onClick={() => handleLihatDetail(transaksi)}
                     >
-                      <BsPrinter className="me-1" /> Cetak Nota
+                      Lihat Detail
                     </Button>
                   </td>
                 </tr>
@@ -357,14 +325,14 @@ const DaftarTransaksi = () => {
             <h2 className="mb-0 fw-bold" style={{ color: '#03081F' }}>
               Daftar Transaksi
             </h2>
-            <p className="text-muted mt-1">Daftar transaksi barang yang lulus QC</p>
+            <p className="text-muted mt-1">Daftar transaksi pembelian barang</p>
           </Col>
         </Row>
 
         <Row>
           <Col md={3}>
             <RoleSidebar
-              namaSidebar={'Status Penitipan'}
+              namaSidebar={'Status Pengiriman'}
               roles={statusViews}
               selectedRole={selectedView}
               handleRoleChange={setSelectedView}
@@ -379,7 +347,7 @@ const DaftarTransaksi = () => {
                     <BsSearch className="search-icon" />
                     <Form.Control
                       type="search"
-                      placeholder="Cari id penitipan, nama barang..."
+                      placeholder="Cari ID pembelian, nama pembeli, nama barang..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="search-input"
@@ -454,7 +422,7 @@ const DaftarTransaksi = () => {
 
             {renderContent()}
 
-            {!loading && filteredPenitipan.length > 0 && totalPages > 1 && (
+            {!loading && filteredTransaksi.length > 0 && totalPages > 1 && (
               <PaginationComponent
                 currentPage={currentPage}
                 totalPages={totalPages}
@@ -465,12 +433,105 @@ const DaftarTransaksi = () => {
         </Row>
       </div>
 
-      {selectedPenitipan && (
-        <CetakNotaModal
-          show={showModal}
-          handleClose={() => setShowModal(false)}
-          penitipan={selectedPenitipan}
-        />
+      {detailTransaksi && (
+        <Modal
+          show={showDetailModal}
+          onHide={() => setShowDetailModal(false)}
+          centered
+          size="lg"
+        >
+          <Modal.Header closeButton>
+            <Modal.Title>Detail Transaksi</Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <Row>
+              <Col md={6}>
+                <h6>ID Pembelian</h6>
+                <p>{detailTransaksi.id_pembelian}</p>
+              </Col>
+              <Col md={6}>
+                <h6>Status Pengiriman</h6>
+                {getStatusBadge(detailTransaksi.pengiriman?.status_pengiriman)}
+              </Col>
+            </Row>
+            <Row className="mt-3">
+              <Col md={6}>
+                <h6>Pembeli</h6>
+                <p>{detailTransaksi.Pembeli?.nama || '-'}</p>
+              </Col>
+              <Col md={6}>
+                <h6>Tanggal Pembelian</h6>
+                <p>{formatDate(detailTransaksi.tanggal_pembelian)}</p>
+              </Col>
+            </Row>
+            <Row className="mt-3">
+              <Col md={6}>
+                <h6>Total Bayar</h6>
+                <p className="fw-bold" style={{ color: '#028643' }}>
+                  {formatRupiah(detailTransaksi.total_bayar || 0)}
+                </p>
+              </Col>
+              <Col md={6}>
+                <h6>Ongkir</h6>
+                <p>{formatRupiah(detailTransaksi.ongkir || 0)}</p>
+              </Col>
+            </Row>
+            <Row className="mt-3">
+              <Col>
+                <h6>Barang</h6>
+                {detailTransaksi.barang?.map((b, index) => (
+                  <div key={index} className="d-flex align-items-center mb-2">
+                    {b.gambar ? (
+                      <img
+                        src={`${baseUrl}${b.gambar.split(',')[0]}`}
+                        alt={b.nama}
+                        style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '4px', marginRight: '10px' }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: '50px',
+                          height: '50px',
+                          backgroundColor: '#f8f9fa',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginRight: '10px',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        <span className="text-muted">No Image</span>
+                      </div>
+                    )}
+                    <div>
+                      <p className="mb-0 fw-bold">{b.nama}</p>
+                      <small className="text-muted">{b.id_barang}</small>
+                      <p className="mb-0">{formatRupiah(b.harga)}</p>
+                    </div>
+                  </div>
+                ))}
+              </Col>
+            </Row>
+            <Row className="mt-3">
+              <Col md={6}>
+                <h6>Jenis Pengiriman</h6>
+                <p>{detailTransaksi.pengiriman?.jenis_pengiriman || '-'}</p>
+              </Col>
+              <Col md={6}>
+                <h6>Status Pembelian</h6>
+                <p>{detailTransaksi.status_pembelian || '-'}</p>
+              </Col>
+            </Row>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button
+              variant="secondary"
+              onClick={() => setShowDetailModal(false)}
+            >
+              Tutup
+            </Button>
+          </Modal.Footer>
+        </Modal>
       )}
 
       <style jsx>{`
@@ -489,17 +550,6 @@ const DaftarTransaksi = () => {
           background-color: #f8f9fa;
           border-color: #E7E7E7;
           color: #03081F;
-        }
-
-        .cetak-nota-btn {
-          border-color: #028643;
-          color: #028643;
-        }
-
-        .cetak-nota-btn:hover {
-          background-color: #028643;
-          color: white;
-          border-color: #028643;
         }
 
         .clear-btn:hover {

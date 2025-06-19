@@ -46,7 +46,7 @@ const RatingModal = ({ show, onHide, currentTransaction, rating, setRating, subm
                   />
                   <div>
                     <small className="fw-bold">{item.nama}</small><br/>
-                    <small className="text-muted">Penjual: {item.penitipName}</small>
+                    <small className="text-muted">Penitip: {item.id_penitip}</small>
                   </div>
                 </div>
               ))}

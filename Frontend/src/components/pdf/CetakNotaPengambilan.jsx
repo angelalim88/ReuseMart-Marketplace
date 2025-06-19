@@ -4,7 +4,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Logo from '../../assets/images/logo.png';
 
-const CetakNotaPengambilan = ({ show, handleClose, penitipan }) => {
+const CetakNotaPengambilan = ({ show, handleClose, transaksi }) => {
   const formatPrice = (angka) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -13,9 +13,17 @@ const CetakNotaPengambilan = ({ show, handleClose, penitipan }) => {
     }).format(angka);
   };
 
+  const formatDateTime = (dateString) => {
+    return dateString ? new Date(dateString).toLocaleString('id-ID', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    }) : '-';
+  };
+
   const formatDate = (dateString) => {
-    const options = { day: '2-digit', month: 'long', year: 'numeric' };
-    return new Date(dateString).toLocaleDateString('id-ID', options);
+    return dateString ? new Date(dateString).toLocaleDateString('id-ID', {
+      day: '2-digit', month: '2-digit', year: 'numeric'
+    }) : '-';
   };
 
   const generatePDF = () => {
@@ -32,16 +40,18 @@ const CetakNotaPengambilan = ({ show, handleClose, penitipan }) => {
       try {
         doc.addImage(Logo, 'PNG', logoX, yPosition, logoWidth, logoHeight);
       } catch (error) {
-        console.warn('Logo failed to load, using placeholder text');
+        console.warn('Logo failed to load');
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(14);
-        doc.text('Your Company Name', logoX, yPosition + 10);
+        doc.text('ReUse Mart', logoX, yPosition + 10);
       }
-      yPosition += logoHeight + 10;
+      yPosition += logoHeight + 5;
 
-      doc.setFillColor(2, 134, 67);
-      doc.rect(0, 0, pageWidth, 4, 'F');
-      doc.rect(0, pageHeight - 4, pageWidth, 4, 'F');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(74, 74, 74);
+      doc.text('Jl. Green Eco Park No. 456 Yogyakarta', pageWidth / 2, yPosition, { align: 'center' });
+      yPosition += 10;
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(16);
@@ -49,105 +59,24 @@ const CetakNotaPengambilan = ({ show, handleClose, penitipan }) => {
       doc.text('NOTA PENGAMBILAN BARANG', pageWidth / 2, yPosition, { align: 'center' });
       yPosition += 8;
 
-      doc.setFont('helvetica', 'italic');
-      doc.setFontSize(9);
-      doc.setTextColor(74, 74, 74);
-      doc.text('"Kualitas Terjamin, QC Terbaik"', pageWidth / 2, yPosition, { align: 'center' });
-      yPosition += 10;
-
       doc.setDrawColor(2, 134, 67);
       doc.setLineWidth(0.3);
       doc.line(margin, yPosition, pageWidth - margin, yPosition);
       yPosition += 8;
 
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12);
-      doc.setTextColor(2, 134, 67);
-      doc.text('Detail Pengambilan', margin, yPosition);
-      yPosition += 5;
-
       autoTable(doc, {
         startY: yPosition,
         head: [['Field', 'Value']],
         body: [
-          ['ID Penitipan', penitipan?.id_penitipan || '-'],
-          ['Tanggal Awal Penitipan', formatDate(penitipan?.tanggal_awal_penitipan) || '-'],
-          ['Tanggal Akhir Penitipan', formatDate(penitipan?.tanggal_akhir_penitipan) || '-'],
-          ['Batas Pengambilan', formatDate(penitipan?.tanggal_batas_pengambilan) || '-'],
-          ['Status Penitipan', penitipan?.status_penitipan || '-'],
-          ['ID Pengiriman', penitipan?.pengiriman?.id_pengiriman || '-'],
-          ['Jenis Pengiriman', penitipan?.pengiriman?.jenis_pengiriman || '-'],
-          ['Status Pengiriman', penitipan?.pengiriman?.status_pengiriman || '-'],
-          ['Tanggal Mulai Pengiriman', formatDate(penitipan?.pengiriman?.tanggal_mulai) || '-'],
-          ['Tanggal Berakhir Pengiriman', formatDate(penitipan?.pengiriman?.tanggal_berakhir) || '-'],
+          ['No Nota', transaksi?.no_nota || '-'],
+          ['Tanggal Pesan', formatDateTime(transaksi?.tanggal_pembelian) || '-'],
+          ['Lunas Pada', formatDateTime(transaksi?.tanggal_pelunasan) || '-'],
+          ['Tanggal Kirim', formatDate(transaksi?.pengiriman?.tanggal_mulai) || '-'],
         ],
         theme: 'grid',
         margin: { left: margin, right: margin },
-        styles: { fontSize: 8, cellPadding: 3, font: 'helvetica' },
-        headStyles: {
-          fillColor: [2, 134, 67],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          fontSize: 9,
-        },
-        alternateRowStyles: { fillColor: [245, 252, 248] },
-      });
-      yPosition = doc.lastAutoTable.finalY + 8;
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12);
-      doc.setTextColor(2, 134, 67);
-      doc.text('Detail Barang', margin, yPosition);
-      yPosition += 5;
-
-      autoTable(doc, {
-        startY: yPosition,
-        head: [['Field', 'Value']],
-        body: [
-          ['ID Barang', penitipan?.Barang?.id_barang || '-'],
-          ['Nama', penitipan?.Barang?.nama || '-'],
-          ['Harga', formatPrice(penitipan?.Barang?.harga || 0)],
-          ['Berat', `${penitipan?.Barang?.berat || '-'} kg`],
-          ['Kategori', penitipan?.Barang?.kategori_barang || '-'],
-          ['Status QC', penitipan?.Barang?.status_qc || '-'],
-        ],
-        theme: 'grid',
-        margin: { left: margin, right: margin },
-        styles: { fontSize: 8, cellPadding: 3, font: 'helvetica' },
-        headStyles: {
-          fillColor: [2, 134, 67],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          fontSize: 9,
-        },
-        alternateRowStyles: { fillColor: [245, 252, 248] },
-      });
-      yPosition = doc.lastAutoTable.finalY + 8;
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12);
-      doc.setTextColor(2, 134, 67);
-      doc.text('Detail Penitip', margin, yPosition);
-      yPosition += 5;
-
-      autoTable(doc, {
-        startY: yPosition,
-        head: [['Field', 'Value']],
-        body: [
-          ['Nama', penitipan?.Barang?.Penitip?.nama_penitip || '-'],
-          ['Nomor KTP', penitipan?.Barang?.Penitip?.nomor_ktp || '-'],
-          ['Email', penitipan?.Barang?.Penitip?.Akun?.email || '-'],
-          ['Tanggal Registrasi', formatDate(penitipan?.Barang?.Penitip?.tanggal_registrasi) || '-'],
-        ],
-        theme: 'grid',
-        margin: { left: margin, right: margin },
-        styles: { fontSize: 8, cellPadding: 3, font: 'helvetica' },
-        headStyles: {
-          fillColor: [2, 134, 67],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          fontSize: 9,
-        },
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: [2, 134, 67], textColor: [255, 255, 255], fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [245, 252, 248] },
       });
       yPosition = doc.lastAutoTable.finalY + 8;
@@ -162,18 +91,65 @@ const CetakNotaPengambilan = ({ show, handleClose, penitipan }) => {
         startY: yPosition,
         head: [['Field', 'Value']],
         body: [
-          ['Nama Pembeli', penitipan?.pembelian?.pembeli?.nama || '-'],
-          ['Alamat Pengiriman', penitipan?.pembelian?.alamat?.alamat_lengkap || '-'],
+          ['Pembeli', `${transaksi?.Pembeli?.Akun?.email || '-'} / ${transaksi?.Pembeli?.nama || '-'}`],
+          ['Alamat', transaksi?.Alamat?.alamat_lengkap || '-'],
+          ['Delivery', transaksi?.pengiriman?.Pegawai ? `Kurir ReUseMart (${transaksi.pengiriman.Pegawai.nama_pegawai})` : '-'],
         ],
         theme: 'grid',
         margin: { left: margin, right: margin },
-        styles: { fontSize: 8, cellPadding: 3, font: 'helvetica' },
-        headStyles: {
-          fillColor: [2, 134, 67],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          fontSize: 9,
-        },
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: [2, 134, 67], textColor: [255, 255, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 252, 248] },
+      });
+      yPosition = doc.lastAutoTable.finalY + 8;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(2, 134, 67);
+      doc.text('Detail Barang', margin, yPosition);
+      yPosition += 5;
+
+      const barangBody = transaksi?.barang?.map(item => [
+        item.nama || '-',
+        formatPrice(item.harga || 0)
+      ]) || [['-', '-']];
+
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Nama Barang', 'Harga']],
+        body: barangBody,
+        theme: 'grid',
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: [2, 134, 67], textColor: [255, 255, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [245, 252, 248] },
+      });
+      yPosition = doc.lastAutoTable.finalY + 8;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(2, 134, 67);
+      doc.text('Ringkasan Pembayaran', margin, yPosition);
+      yPosition += 5;
+
+      const poinValue = transaksi?.potongan_poin ? transaksi.potongan_poin / 10 : 0;
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Field', 'Value']],
+        body: [
+          ['Total', formatPrice(transaksi?.total_harga || 0)],
+          ['Ongkos Kirim', formatPrice(transaksi?.ongkir || 0)],
+          ['Total Bayar', formatPrice((transaksi?.total_bayar || 0))],
+          [`Potongan ${transaksi?.potongan_poin || 0} Poin`, `-${formatPrice(poinValue*100)}`],
+          ['Total Setelah Potongan', formatPrice(transaksi?.total_bayar - transaksi?.potongan_poin*100 || 0)],
+          ['Poin dari Pesanan Ini', transaksi?.poin_diperoleh || 0],
+          ['Total Poin Customer', transaksi?.Pembeli?.total_poin || 0],
+          ['QC Oleh', `${transaksi?.barang?.[0]?.PegawaiGudang?.nama_pegawai || '-'} (${transaksi?.barang?.[0]?.id_pegawai_gudang || '-'})`],
+        ],
+        theme: 'grid',
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: [2, 134, 67], textColor: [255, 255, 255], fontStyle: 'bold' },
         alternateRowStyles: { fillColor: [245, 252, 248] },
       });
       yPosition = doc.lastAutoTable.finalY + 10;
@@ -181,13 +157,9 @@ const CetakNotaPengambilan = ({ show, handleClose, penitipan }) => {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
       doc.setTextColor(74, 74, 74);
-      doc.text(
-        `Dibuat pada: ${formatDate(new Date())}`,
-        margin,
-        pageHeight - 10
-      );
+      doc.text(`Dibuat pada: ${formatDate(new Date())}`, margin, pageHeight - 10);
 
-      doc.save(`Nota_Pengambilan_${penitipan?.id_penitipan || 'unknown'}.pdf`);
+      doc.save(`Nota_Pengambilan_${transaksi?.id_pembelian || 'unknown'}.pdf`);
     } catch (error) {
       console.error('PDF generation error:', error);
       alert('Gagal menghasilkan PDF. Silakan coba lagi.');
@@ -201,27 +173,16 @@ const CetakNotaPengambilan = ({ show, handleClose, penitipan }) => {
       </Modal.Header>
       <Modal.Body className="p-4">
         <div className="text-center mb-3">
-          <h6 className="fw-bold">ID: {penitipan?.id_penitipan || '-'}</h6>
+          <h6 className="fw-bold">No Nota: {transaksi?.no_nota || '-'}</h6>
         </div>
         <div className="card p-3 border-success shadow-sm">
-          <p className="mb-2">
-            <strong>Nama Barang:</strong> {penitipan?.Barang?.nama || '-'}
-          </p>
-          <p className="mb-2">
-            <strong>Penitip:</strong> {penitipan?.Barang?.Penitip?.nama_penitip || '-'}
-          </p>
-          <p className="mb-2">
-            <strong>Pembeli:</strong> {penitipan?.pembelian?.pembeli?.nama || '-'}
-          </p>
-          <p className="mb-0">
-            <strong>Status:</strong> {penitipan?.status_penitipan || '-'}
-          </p>
+          <p className="mb-2"><strong>Nama Barang:</strong> {transaksi?.barang?.[0]?.nama || '-'}</p>
+          <p className="mb-2"><strong>Pembeli:</strong> {transaksi?.Pembeli?.nama || '-'}</p>
+          <p className="mb-0"><strong>Status:</strong> {transaksi?.pengiriman?.status_pengiriman || '-'}</p>
         </div>
       </Modal.Body>
       <Modal.Footer className="border-0">
-        <Button variant="outline-secondary" onClick={handleClose} className="rounded-pill">
-          Batal
-        </Button>
+        <Button variant="outline-secondary" onClick={handleClose} className="rounded-pill">Batal</Button>
         <Button variant="success" onClick={generatePDF} className="rounded-pill">
           <i className="bi bi-file-pdf me-2"></i>Cetak Nota
         </Button>

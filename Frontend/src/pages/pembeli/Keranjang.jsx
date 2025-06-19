@@ -228,9 +228,9 @@ const Keranjang = () => {
             for (const produk of selectedProduct) {
               await UpdateStatusPenitipan(produk?.Barang?.Penitipan?.id_penitipan, "Dibeli");
             }
-            // for (const produk of selectedProduct) {
-            //   await apiKeranjang.deleteKeranjang(produk.id_keranjang);
-            // }
+            for (const produk of selectedProduct) {
+              await apiKeranjang.deleteKeranjang(produk.id_keranjang);
+            }
             toast.success("Pembelian berhasil!");
           }
         }
@@ -341,7 +341,7 @@ const Keranjang = () => {
           carts.length == 0 && <><p className="text-center fw-bold mt-5">Belum ada produk di keranjang</p></> 
         }
         {
-          filtered.length == 0 ? 
+          filtered.length == 0 && carts.length != 0 ? 
           <><p className="text-center fw-bold mt-5">Produk tidak ditemukan</p></> 
           : 
           paginated.map((item, i) => <div key={i} className="product-card flex-column mb-4 p-4 d-flex justify-content-between align-items-center flex-wrap">

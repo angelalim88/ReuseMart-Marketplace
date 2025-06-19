@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, Button } from 'react-bootstrap';
 
-const ConfirmationModal = ({ show, handleClose, transaksi, handleConfirm }) => {
+const ConfirmationModal2 = ({ show, handleClose, transaksi, handleConfirm }) => {
   const handleConfirmClick = () => {
     handleConfirm(transaksi);
     handleClose();
@@ -10,10 +10,10 @@ const ConfirmationModal = ({ show, handleClose, transaksi, handleConfirm }) => {
   return (
     <Modal show={show} onHide={handleClose} centered>
       <Modal.Header closeButton>
-        <Modal.Title>Konfirmasi Pengambilan</Modal.Title>
+        <Modal.Title>Konfirmasi Pengiriman</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        <p>Apakah Anda yakin barang ini telah diambil?</p>
+        <p>Apakah Anda yakin barang ini telah diambil oleh kurir?</p>
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={handleClose}>
@@ -27,4 +27,4 @@ const ConfirmationModal = ({ show, handleClose, transaksi, handleConfirm }) => {
   );
 };
 
-export default ConfirmationModal;
+export default ConfirmationModal2;

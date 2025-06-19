@@ -84,7 +84,7 @@ const DetailTransaksiModal = ({ show, onHide, currentTransaction, generateNotaNu
                     <Col xs={9} md={10}>
                       <h6 className="mb-1">{item.nama}</h6>
                       <p className="mb-1 text-muted small">{item.deskripsi}</p>
-                      <p className="mb-1"><strong>Penjual:</strong> {item.penitipName}</p>
+                      <p className="mb-1"><strong>Penjual:</strong> {item.id_penitip}</p>
                       <p className="mb-0 text-primary fw-bold">{formatCurrency(item.harga)}</p>
                     </Col>
                   </Row>

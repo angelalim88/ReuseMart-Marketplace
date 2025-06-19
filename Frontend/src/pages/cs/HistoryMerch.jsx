@@ -4,11 +4,13 @@ import {
   Row, 
   Col, 
   Form,  
-  Spinner
+  Spinner,
+  Button
 } from 'react-bootstrap';
 import { 
   BsSearch, 
-  BsExclamationTriangle
+  BsExclamationTriangle,
+  BsArrowDownUp
 } from 'react-icons/bs';
 import { GetAllClaimMerchandise, GetClaimMerchandiseById } from '../../clients/ClaimMerchandiseService';
 import { decodeToken } from '../../utils/jwtUtils';
@@ -36,8 +38,9 @@ const HistoryClaimMerchandisePage = () => {
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState('success');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(9); // Increased from 6 to 9 for better grid layout
+  const [itemsPerPage] = useState(9);
   const [akun, setAkun] = useState(null);
+  const [sortOrder, setSortOrder] = useState('asc'); // New state for sort order
 
   const statusViews = [
     { id: 'all', name: 'Semua Status' },
@@ -79,7 +82,7 @@ const HistoryClaimMerchandisePage = () => {
 
   useEffect(() => {
     filterClaimData();
-  }, [selectedView, claimList, searchTerm]);
+  }, [selectedView, claimList, searchTerm, sortOrder]);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -117,8 +120,19 @@ const HistoryClaimMerchandisePage = () => {
       );
     }
     
+    // Sort by tanggal_claim
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.tanggal_claim);
+      const dateB = new Date(b.tanggal_claim);
+      return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+    
     setFilteredClaims(filtered);
     setCurrentPage(1);
+  };
+
+  const handleSortToggle = () => {
+    setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
   };
 
   const handleViewDetail = async (claimId) => {
@@ -167,7 +181,7 @@ const HistoryClaimMerchandisePage = () => {
         
         <Row className="mb-4 align-items-center">
           <Col>
-            <h2 className="page-title">Kelola Claim Merchandise</h2>
+            <h2 className="page-title">History Claim Merchandise</h2>
             <p className="page-subtitle">Daftar claim merchandise yang dilakukan oleh pembeli</p>
           </Col>
         </Row>
@@ -183,8 +197,8 @@ const HistoryClaimMerchandisePage = () => {
           </Col>
 
           <Col lg={9} md={8}>
-            <Row className="mb-4">
-              <Col md={12}>
+            <Row className="mb-4 align-items-center">
+              <Col md={10}>
                 <div className="search-container">
                   <BsSearch className="search-icon" />
                   <Form.Control
@@ -195,6 +209,17 @@ const HistoryClaimMerchandisePage = () => {
                     className="search-input"
                   />
                 </div>
+              </Col>
+              <Col md={2} className="text-end">
+                <Button
+                  variant="outline-primary"
+                  className="sort-button"
+                  onClick={handleSortToggle}
+                  title={`Urutkan berdasarkan tanggal (${sortOrder === 'asc' ? 'terlama' : 'terbaru'})`}
+                >
+                  <BsArrowDownUp className="me-1" />
+                  {sortOrder === 'asc' ? 'Terlama' : 'Terbaru'}
+                </Button>
               </Col>
             </Row>
 
@@ -273,19 +298,40 @@ const HistoryClaimMerchandisePage = () => {
         .search-input {
           height: 48px;
           padding-left: 45px;
-          border-radius: 12px;
+          border-radius: 25px;
           border: 2px solid #E7E7E7;
-          font-size: 0.95rem;
-          transition: all 0.2s ease;
         }
         
         .search-input:focus {
-          box-shadow: 0 0 0 0.2rem rgba(2, 134, 67, 0.15);
+          box-shadow: none;
           border-color: #028643;
         }
         
         .search-input::placeholder {
           color: #9ca3af;
+        }
+        
+        .sort-button {
+          height: 48px;
+          border-radius: 25px;
+          border: 2px solid #E7E7E7;
+          color: #028643;
+          font-size: 0.9rem;
+          padding: 0 1rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        
+        .sort-button:hover {
+          background-color: #028643;
+          color: white;
+          border-color: #028643;
+        }
+        
+        .sort-button svg {
+          width: 16px;
+          height: 16px;
         }
         
         .loading-container {
@@ -386,6 +432,12 @@ const HistoryClaimMerchandisePage = () => {
             font-size: 0.9rem;
           }
           
+          .sort-button {
+            height: 44px;
+            font-size: 0.85rem;
+            padding: 0 0.75rem;
+          }
+          
           .loading-container {
             padding: 3rem 0;
           }
@@ -410,6 +462,11 @@ const HistoryClaimMerchandisePage = () => {
           
           .pagination-container {
             margin-top: 1.5rem;
+          }
+          
+          .sort-button {
+            width: 100%;
+            margin-top: 0.5rem;
           }
         }
       `}</style>

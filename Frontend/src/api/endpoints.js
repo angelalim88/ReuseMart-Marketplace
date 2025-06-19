@@ -48,6 +48,7 @@ export const ENDPOINTS = {
 
     // Penitip
     GET_ALL_PENITIP: "/penitip",
+    GET_ALL_PENITIP_CUSTOM: "/penitip/custom",
     CREATE_PENITIP: "/penitip",
     SHOW_PENITIP: (id) => `/penitip/${id}`,
     UPDATE_PENITIP: (id) => `/penitip/${id}`,
@@ -66,6 +67,7 @@ export const ENDPOINTS = {
     ITEM_FOR_SCHEDULING: (id) => `/penitipan/item-for-scheduling/${id}`,
     CONFIRM_RECEIPT: (id) => `/penitipan/confirm-receipt/${id}`,
     SCHEDULE_PICKUP: (id) => `/penitipan/schedule-pickup/${id}`,
+    GET_PENITIPAN_BY_STATUS: (status) => `/penitipan/byStatus/${status}`,
     
     // Barang
     GET_ALL_BARANG: "/barang",
@@ -82,7 +84,8 @@ export const ENDPOINTS = {
     UPDATE_PEMBELIAN: (id) => `/pembelian/${id}`,
     DELETE_PEMBELIAN: (id) => `/pembelian/${id}`,
     GET_PEMBELIAN_BY_PEMBELI: (id) => `/pembelian/byIdPembeli/${id}`,
-    
+    GET_PEMBELIAN_BY_PENITIP: (id) => `/pembelian/byIdPenitip/${id}`,
+
     // Pengiriman
     GET_ALL_PENGIRIMAN: "/pengiriman",
     CREATE_PENGIRIMAN: "/pengiriman",
@@ -161,5 +164,8 @@ export const ENDPOINTS = {
     DELETE_SUB_PEMBELIAN: (id) => `/sub-pembelian/${id}`,
     GET_SUB_PEMBELIAN_BY_PEMBELIAN: (id_pembelian) => `/sub-pembelian/by-pembelian/${id_pembelian}`,
     GET_SUB_PEMBELIAN_BY_PEMBELI: (id_pembeli) => `/sub-pembelian/byIdPembeli/${id_pembeli}`, 
-    GET_SUB_PEMBELIAN_BY_PENITIP: (id_penitip) => `/sub-pembelian/byIdPenitip/${id_penitip}`
+    GET_SUB_PEMBELIAN_BY_PENITIP: (id_penitip) => `/sub-pembelian/byIdPenitip/${id_penitip}`,
+
+    SEND_NOTIFICATION: "/notification/sendPushNotification",
+    SEND_BULK_NOTIFICATION: "/notification/sendBulkNotifications",
 };
